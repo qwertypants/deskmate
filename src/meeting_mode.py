@@ -46,10 +46,19 @@ def resolve(name, default):
 
 
 def verified(apps):
-    return any(app.get("name") == APP_NAME and app.get("origin") == "script"
-               and app.get("error") is None
-               and all(app.get(key) is True for key in ("present", "enabled", "inLoop"))
-               for app in apps)
+    wave_is_ready = any(app.get("name") == APP_NAME and app.get("origin") == "script"
+                        and app.get("error") is None
+                        and all(app.get(key) is True for key in ("present", "enabled", "inLoop"))
+                        for app in apps)
+    loop_members = [app for app in apps
+                    if app.get("enabled") is True and app.get("inLoop") is True]
+    return wave_is_ready and len(loop_members) == 1 and loop_members[0].get("name") == APP_NAME
+
+
+def extra_loop_apps(apps):
+    return [app.get("name") for app in apps
+            if app.get("name") != APP_NAME and app.get("enabled") is True
+            and app.get("inLoop") is True]
 
 
 def enter(client, state_path, idle_state_path, brightness):
@@ -64,7 +73,17 @@ def enter(client, state_path, idle_state_path, brightness):
     state = claim(client, state_path, APP_NAME, {APP_NAME}, brightness, None, call=guarded)
     _, apps = client.list_apps()
     if not verified(apps):
-        raise ValueError(APP_NAME + " was not verified present, script, enabled, inLoop and error-free")
+        if extra_loop_apps(apps):
+            disabled = [app["name"] for app in apps if app.get("name") != APP_NAME]
+            client.set_app_order([APP_NAME], disabled)
+            client.activate_app(APP_NAME)
+            _, apps = client.list_apps()
+        if not verified(apps):
+            extras = extra_loop_apps(apps)
+            detail = "; extra active loop apps: " + ", ".join(
+                str(name) for name in extras) if extras else ""
+            raise ValueError(APP_NAME + " was not verified as the sole active loop app"
+                             " (present, script, enabled, inLoop and error-free)" + detail)
     return state
 
 
@@ -83,7 +102,7 @@ def run(command):
     client = Awtrix(os.environ.get("AWTRIX_HOST", "http://192.168.4.94"))
     if command == "enter":
         enter(client, state_path, idle_state_path, brightness)
-        print("Verified meeting wave: present, script, enabled, inLoop", flush=True)
+        print("Verified meeting wave: only enabled app in loop", flush=True)
     else:
         exit_mode(client, state_path)
         print("Verified normal AWTRIX mode restored after meeting", flush=True)
