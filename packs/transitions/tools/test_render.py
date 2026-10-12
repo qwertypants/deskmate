@@ -145,6 +145,9 @@ class FrameValidationTests(unittest.TestCase):
 
     def test_success_publishes_complete_bundle_and_preserves_user_file(self):
         frames = self.sample_frames()
+        # GIF encoders merge adjacent identical frames into a longer duration.
+        # Playback must still equal the 100 sampled ticks exactly.
+        frames[2] = frames[0]
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
             (root / "great-wave.be").write_text("source")
@@ -164,12 +167,25 @@ class FrameValidationTests(unittest.TestCase):
                              "previews/contact-sheet.png"):
                     self.assertIn("color-current-transition-pack/" + name, names)
             with Image.open(root / "previews/great-wave.gif") as gif:
-                self.assertEqual(gif.n_frames, render.GIF_FRAME_COUNT)
                 durations = []
+                decoded_ticks = []
                 for frame_index in range(gif.n_frames):
                     gif.seek(frame_index)
-                    durations.append(gif.info["duration"])
-                self.assertEqual(durations, [gif_duration_ms("great-wave")] * render.GIF_FRAME_COUNT)
+                    frame_duration = gif.info["duration"]
+                    durations.append(frame_duration)
+                    self.assertEqual(frame_duration % gif_duration_ms("great-wave"), 0)
+                    decoded = gif.convert("RGB").tobytes()
+                    decoded_ticks.extend([decoded] * (frame_duration // gif_duration_ms("great-wave")))
+                palette_source = Image.new("RGB", (32 * 16, 8 * 13))
+                for sample_index, frame in enumerate(frames):
+                    palette_source.paste(render.image_for(frame, scale=1),
+                                         ((sample_index % 16) * 32, (sample_index // 16) * 8))
+                palette = palette_source.quantize(colors=256, method=Image.Quantize.MEDIANCUT,
+                                                  dither=Image.Dither.NONE)
+                expected_ticks = [image.quantize(palette=palette, dither=Image.Dither.NONE).convert("RGB").tobytes()
+                                  for image in [render.image_for(frame) for frame in frames][::2]]
+                self.assertEqual(decoded_ticks, expected_ticks)
+                self.assertLess(gif.n_frames, render.GIF_FRAME_COUNT)
                 self.assertEqual(sum(durations), DEFAULT_DURATIONS["great-wave"])
 
     def test_publish_failure_restores_every_original_generated_output(self):

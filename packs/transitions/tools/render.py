@@ -271,14 +271,19 @@ def build(berry):
             contact.paste(image_for(frames[poster_index]), (32,index*160+28))
             with Image.open(previews / f'{slug}.gif') as gif:
                 total = 0
-                assert gif.n_frames == GIF_FRAME_COUNT, (slug, 'GIF frame count', gif.n_frames)
+                decoded_ticks = []
                 for frame_index in range(gif.n_frames):
                     gif.seek(frame_index)
                     decoded = gif.convert('RGB').tobytes()
-                    expected = gif_frames[frame_index].convert('RGB').tobytes()
-                    assert decoded == expected, (slug, 'GIF pixel mismatch', frame_index)
-                    assert gif.info['duration'] == gif_duration_ms(slug), (slug, 'GIF frame duration', frame_index)
-                    total += gif.info['duration']
+                    frame_duration = gif.info['duration']
+                    assert frame_duration % gif_duration_ms(slug) == 0, (slug, 'GIF frame duration', frame_index)
+                    tick_count = frame_duration // gif_duration_ms(slug)
+                    expected = gif_frames[len(decoded_ticks):len(decoded_ticks) + tick_count]
+                    assert all(decoded == image.convert('RGB').tobytes() for image in expected), (slug, 'GIF pixel mismatch', frame_index)
+                    decoded_ticks.extend([decoded] * tick_count)
+                    total += frame_duration
+                assert len(decoded_ticks) == GIF_FRAME_COUNT, (slug, 'GIF playback tick count', len(decoded_ticks))
+                assert decoded_ticks == [image.convert('RGB').tobytes() for image in gif_frames], (slug, 'GIF playback mismatch')
                 assert total == duration, (slug, total, duration)
             summary.append({'id':slug,'name':title,'description':desc,'durationMs':duration,'style':STYLES.get(slug, 'PIXEL CARTOON'),
                             'sourceBytes':len(source.encode()), 'distinctFrames':len({tuple(f) for f in frames})})
