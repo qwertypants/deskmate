@@ -168,6 +168,20 @@ class PayloadTests(unittest.TestCase):
         self.assertEqual(event_payload(selected, NOW, ZONE)["text"],
                          "Tomorrow 9:00 AM Team sync")
 
+    def test_same_day_label_uses_local_date_across_utc_midnight(self):
+        now = datetime(2026, 10, 5, 1, 30, tzinfo=timezone.utc)  # Oct 4, 9:30 PM EDT
+        start = datetime(2026, 10, 5, 2, 0, tzinfo=timezone.utc)  # Oct 4, 10:00 PM EDT
+        selected = select_events([event(start=start, end=start + timedelta(hours=1))], now)
+        self.assertEqual(event_payload(selected, now, ZONE)["text"],
+                         "10:00 PM Team sync")
+
+    def test_tomorrow_label_changes_at_local_midnight_within_same_utc_date(self):
+        now = datetime(2026, 10, 5, 3, 30, tzinfo=timezone.utc)  # Oct 4, 11:30 PM EDT
+        start = datetime(2026, 10, 5, 4, 30, tzinfo=timezone.utc)  # Oct 5, 12:30 AM EDT
+        selected = select_events([event(start=start, end=start + timedelta(hours=1))], now)
+        self.assertEqual(event_payload(selected, now, ZONE)["text"],
+                         "Tomorrow 12:30 AM Team sync")
+
     def test_expiration_is_capped_at_start_or_end(self):
         for start, end in ((NOW + timedelta(seconds=30), NOW + timedelta(minutes=5)),
                            (NOW - timedelta(minutes=5), NOW + timedelta(seconds=30))):

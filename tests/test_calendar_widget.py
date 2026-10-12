@@ -63,6 +63,7 @@ class CommandTests(unittest.TestCase):
         self.assertEqual(payload["icon"], "calendardots")
         self.assertEqual(payload["lifetimeMs"], 120000)
         self.assertNotIn("Private Team sync", output.getvalue())
+        self.assertIn("timezone=America/New_York local_date=2026-10-04", output.getvalue())
         self.assertIn("Verified google_calendar", output.getvalue())
         self.client.delete_app.assert_not_called()
         self.service.return_value.close.assert_called_once()
@@ -91,6 +92,7 @@ class CommandTests(unittest.TestCase):
             calendar_widget.run()
         self.client.push_app.assert_not_called()
         self.assertNotIn("Private", output.getvalue())
+        self.assertIn("timezone=America/New_York local_date=2026-10-04", output.getvalue())
 
     def test_shell_overrides_env_and_relative_paths_resolve_from_repo(self):
         (self.root / ".env").write_text("AWTRIX_HOST=http://file\n"
@@ -241,6 +243,7 @@ class CommandTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "TIMEZONE"):
             calendar_widget.run()
         self.auth.assert_not_called()
+        self.fetch.assert_not_called()
         self.factory.assert_not_called()
 
     def test_ongoing_meeting_takes_over_the_display_and_skips_the_push(self):

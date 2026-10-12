@@ -70,6 +70,8 @@ def run(authorize=False):
     # Select again after the API and preflight requests: an event may have ended.
     now = utcnow()
     selected = select_events(events, now)
+    print("Calendar label evaluation: timezone=%s local_date=%s" %
+          (display_zone.key, now.astimezone(display_zone).date().isoformat()))
     # The wave is poll-driven: this once-a-minute run decides whether it holds the display.
     brightness, wave_state, idle_state = meeting_mode.config()
     if any(ongoing(event, now) for event in selected):
