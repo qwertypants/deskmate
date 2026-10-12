@@ -32,19 +32,19 @@ class TransitionTimingTests(unittest.TestCase):
         self.assertEqual(gif_duration_ms("ocean-drops") * 100, 5000)
 
     def test_exact_cycle_seam_is_opt_in(self):
-        self.assertEqual(render.SEAM_VALIDATED, frozenset({"great-wave"}))
+        self.assertEqual(render.SEAM_VALIDATED, frozenset({"great-wave", "neon-highway"}))
         for slug in render.NAMES:
             with self.subTest(slug=slug), patch.object(render, "execute") as execute:
                 render.verify("berry", "source", DEFAULT_DURATIONS[slug],
                               MAX_DURATIONS[slug], slug in render.SEAM_VALIDATED)
                 script = execute.call_args.args[2]
                 seam_clock = f"clock=10000+{DEFAULT_DURATIONS[slug]} clear() app.draw()"
-                self.assertEqual(seam_clock in script, slug == "great-wave")
+                self.assertEqual(seam_clock in script, slug in render.SEAM_VALIDATED)
                 self.assertIn("clock=500000 app.on_show()", script)
                 self.assertIn("configured=750 app.on_show() assert(app.duration()==1000)", script)
                 self.assertIn(f"configured=9000 app.on_show() assert(app.duration()=={MAX_DURATIONS[slug]})", script)
 
-    def test_near_seam_delta_is_checked_only_for_great_wave(self):
+    def test_near_seam_delta_is_checked_for_seam_validated_animations(self):
         for slug in render.NAMES:
             with self.subTest(slug=slug), patch.object(render, "execute") as execute:
                 duration = DEFAULT_DURATIONS[slug]
@@ -53,11 +53,11 @@ class TransitionTimingTests(unittest.TestCase):
                 script = execute.call_args.args[2]
                 for offset in ("-50", "-25", "", "+25", "+50"):
                     sample = f"clock=10000+{duration}{offset} clear() app.draw()"
-                    self.assertEqual(sample in script, slug == "great-wave")
+                    self.assertEqual(sample in script, slug in render.SEAM_VALIDATED)
                 self.assertEqual("var seam_delta=max(frame_delta(before,at),frame_delta(at,after))" in script,
-                                 slug == "great-wave")
-                self.assertEqual("assert(seam_delta<=160)" in script, slug == "great-wave")
-                self.assertEqual("assert(seam_delta<=nearby*2+8)" in script, slug == "great-wave")
+                                 slug in render.SEAM_VALIDATED)
+                self.assertEqual("assert(seam_delta<=160)" in script, slug in render.SEAM_VALIDATED)
+                self.assertEqual("assert(seam_delta<=nearby*2+8)" in script, slug in render.SEAM_VALIDATED)
         self.assertIn("def frame_delta(a,b)", render.PRELUDE)
         self.assertIn("for i : 0..255", render.PRELUDE)
         self.assertIn("if delta > largest largest = delta end", render.PRELUDE)
@@ -71,7 +71,7 @@ class TransitionTimingTests(unittest.TestCase):
         self.assertNotIn("&& foam >", source)
         self.assertNotIn("&& hook >", source)
 
-    def test_build_passes_seam_flag_only_for_great_wave(self):
+    def test_build_passes_seam_flag_for_seam_validated_animations(self):
         for slug in render.NAMES:
             with self.subTest(slug=slug), tempfile.TemporaryDirectory() as temp:
                 Path(temp, f"{slug}.be").write_text("source")
@@ -81,7 +81,7 @@ class TransitionTimingTests(unittest.TestCase):
                         patch.object(render, "frames_for", side_effect=RuntimeError("stop after verify")):
                     with self.assertRaisesRegex(RuntimeError, "stop after verify"):
                         render.build("berry")
-                    self.assertEqual(verify.call_args.args[-1], slug == "great-wave")
+                    self.assertEqual(verify.call_args.args[-1], slug in render.SEAM_VALIDATED)
 
 
 class FrameValidationTests(unittest.TestCase):
@@ -145,6 +145,9 @@ class FrameValidationTests(unittest.TestCase):
 
     def test_success_publishes_complete_bundle_and_preserves_user_file(self):
         frames = self.sample_frames()
+        # GIF encoders merge adjacent identical frames into a longer duration.
+        # Playback must still equal the 100 sampled ticks exactly.
+        frames[2] = frames[0]
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
             (root / "great-wave.be").write_text("source")
@@ -164,12 +167,25 @@ class FrameValidationTests(unittest.TestCase):
                              "previews/contact-sheet.png"):
                     self.assertIn("color-current-transition-pack/" + name, names)
             with Image.open(root / "previews/great-wave.gif") as gif:
-                self.assertEqual(gif.n_frames, render.GIF_FRAME_COUNT)
                 durations = []
+                decoded_ticks = []
                 for frame_index in range(gif.n_frames):
                     gif.seek(frame_index)
-                    durations.append(gif.info["duration"])
-                self.assertEqual(durations, [gif_duration_ms("great-wave")] * render.GIF_FRAME_COUNT)
+                    frame_duration = gif.info["duration"]
+                    durations.append(frame_duration)
+                    self.assertEqual(frame_duration % gif_duration_ms("great-wave"), 0)
+                    decoded = gif.convert("RGB").tobytes()
+                    decoded_ticks.extend([decoded] * (frame_duration // gif_duration_ms("great-wave")))
+                palette_source = Image.new("RGB", (32 * 16, 8 * 13))
+                for sample_index, frame in enumerate(frames):
+                    palette_source.paste(render.image_for(frame, scale=1),
+                                         ((sample_index % 16) * 32, (sample_index // 16) * 8))
+                palette = palette_source.quantize(colors=256, method=Image.Quantize.MEDIANCUT,
+                                                  dither=Image.Dither.NONE)
+                expected_ticks = [image.quantize(palette=palette, dither=Image.Dither.NONE).convert("RGB").tobytes()
+                                  for image in [render.image_for(frame) for frame in frames][::2]]
+                self.assertEqual(decoded_ticks, expected_ticks)
+                self.assertLess(gif.n_frames, render.GIF_FRAME_COUNT)
                 self.assertEqual(sum(durations), DEFAULT_DURATIONS["great-wave"])
 
     def test_publish_failure_restores_every_original_generated_output(self):

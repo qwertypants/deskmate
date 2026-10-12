@@ -35,13 +35,24 @@ def save(path, state):
     temporary.replace(path)
 
 
-def snapshot(apps, settings, owner_names):
+def snapshot(apps, settings, owner_names, current_app=None):
+    order = [app["name"] for app in apps
+             if app.get("enabled") is True and app.get("inLoop") is True
+             and app["name"] not in owner_names]
     return {"active": True,
             "brightness": settings.get("brightness", 120),
             "autoBrightness": settings.get("autoBrightness", False),
-            "order": [app["name"] for app in apps if app.get("inLoop") and app["name"] not in owner_names],
-            "disabled": [app["name"] for app in apps if not app.get("enabled") and app["name"] not in owner_names],
-            "activeApp": next((app["name"] for app in apps if app.get("present")), None)}
+            # Only apps that can actually run belong in the saved loop. Older
+            # snapshots could include disabled apps here when AWTRIX reported
+            # inLoop=True for them; enabled apps outside the loop stay omitted.
+            "order": order,
+            "disabled": [app["name"] for app in apps
+                         if (not app.get("enabled") or
+                             (app.get("origin") == "script" and app.get("inLoop") is not True))
+                         and app["name"] not in owner_names],
+            # Presence is not the same as the app currently on the display.
+            # Save only a current app that will be restored to the loop.
+            "activeApp": current_app if isinstance(current_app, str) and current_app in order else None}
 
 
 def claim(client, state_path, owner, owner_names, brightness, other_state_path, call=direct):
@@ -55,10 +66,11 @@ def claim(client, state_path, owner, owner_names, brightness, other_state_path, 
     if existing and existing.get("origin") != "script":
         raise ValueError("AWTRIX has a non-script app named " + owner + "; refusing to replace it")
     _, settings = call(client.get_settings)
+    _, device = call(client.get_device)
     state = load(state_path)
     # Snapshot once per takeover: a repeated run must not capture the reshaped loop.
     if not state or not state.get("active"):
-        save(state_path, snapshot(apps, settings, owner_names))
+        save(state_path, snapshot(apps, settings, owner_names, device.get("currentApp")))
     client.set_app_order([owner], [app["name"] for app in apps if app.get("name") != owner])
     call(client.patch_settings, {"autoBrightness": False, "brightness": brightness})
     call(client.activate_app, owner)
@@ -71,10 +83,15 @@ def release(client, state_path, owner, owner_names, call=direct):
     _, apps = call(client.list_apps)
     if any(app.get("name") == owner and app.get("origin") != "script" for app in apps):
         raise ValueError("AWTRIX has a non-script app named " + owner + "; refusing to remove it")
-    order = [name for name in (state.get("order", []) if state else
-                               [app["name"] for app in apps if app.get("inLoop")]) if name not in owner_names]
     disabled = [name for name in (state.get("disabled", []) if state else
                                   [app["name"] for app in apps if not app.get("enabled")]) if name not in owner_names]
+    # Exclude disabled apps even when restoring older snapshots whose order
+    # included an app AWTRIX reported as both inLoop and disabled.
+    disabled_set = set(disabled)
+    order = [name for name in (state.get("order", []) if state else
+                               [app["name"] for app in apps if app.get("enabled") is True
+                                and app.get("inLoop") is True])
+             if name not in owner_names and name not in disabled_set]
     # Keep the owner's script installed for its next run, but out of the loop.
     disabled.append(owner)
     client.set_app_order(order, disabled)

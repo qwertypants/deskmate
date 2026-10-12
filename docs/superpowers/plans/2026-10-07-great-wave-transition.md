@@ -6,7 +6,7 @@
 
 **Architecture:** Add one self-contained Berry app whose motion is driven only by periodic functions of elapsed time. Extend the existing Python renderer to keep each animation's registered duration, calculate GIF timing from that duration, and assert the Great Wave's exact seam. Regenerate all pack artifacts through the renderer; do not hand-edit generated files.
 
-**Tech Stack:** Berry, AWTRIX NG 32×8 drawing API, Python 3, Pillow, the repository's Berry interpreter, GitButler.
+**Tech Stack:** Berry, AWTRIX NG 32×8 drawing API, Python 3, Pillow, the repository's Berry interpreter, standard `git`.
 
 ## Global Constraints
 
@@ -110,13 +110,15 @@ Run the same unittest command. Expected: PASS with both timing tests green.
 
 - [ ] **Step 5: Commit the focused renderer-registry test and implementation**
 
-Inspect with `but diff`, then commit only the new test and renderer hunk on the implementation branch:
+Inspect with `git status` and `git diff`, then stage only the two paths and commit them:
 
 ```bash
-but diff
+git diff
+git add packs/transitions/tools/test_render.py packs/transitions/tools/render.py
+git diff --cached --stat
 ```
 
-Run `but commit -b great-wave-transition -m "Add per-animation transition timing support"` with only the two file IDs printed for `test_render.py` and `render.py`; do not include unrelated workspace changes.
+Confirm the staged stat shows only `test_render.py` and `render.py`, then commit on the feature branch. Do not include unrelated workspace changes.
 
 ### Task 2: Generalize renderer validation to registered durations
 
@@ -191,13 +193,7 @@ Run the focused unittest command. Expected: PASS.
 
 - [ ] **Step 5: Commit the duration-aware renderer validation**
 
-Use `but diff` and commit only the renderer changes:
-
-```bash
-but diff
-```
-
-Run `but commit -b great-wave-transition -m "Validate transition GIFs at registered durations"` with only the `render.py` file ID printed by `but diff`.
+Inspect with `git diff`, stage only `packs/transitions/tools/render.py`, and confirm with `git diff --cached --stat` before committing.
 
 ### Task 3: Implement the seamless Great Wave Berry animation
 
@@ -310,13 +306,7 @@ Open `packs/transitions/previews/great-wave.gif` and `packs/transitions/previews
 
 - [ ] **Step 4: Commit the Berry source**
 
-Use `but diff` and commit only `packs/transitions/great-wave.be`:
-
-```bash
-but diff
-```
-
-Run `but commit -b great-wave-transition -m "Add seamless seven-second Great Wave animation"` with only the `great-wave.be` file ID printed by `but diff`.
+Inspect with `git diff`, stage only `packs/transitions/great-wave.be`, and confirm with `git diff --cached --stat` before committing.
 
 ### Task 4: Regenerate and verify the complete transition pack
 
@@ -371,19 +361,13 @@ PY
 
 Expected: the manifest, previews, and ZIP all contain the Great Wave entry and source.
 
-- [ ] **Step 4: Inspect the final GitButler diff**
+- [ ] **Step 4: Inspect the final diff**
 
-Run `but diff` and confirm the change contains only the approved design follow-up, implementation-plan/source/renderer work, focused tests, and renderer-generated transition artifacts. Preserve unrelated workspace changes in the meeting-in-progress plan and `opencode.json`.
+Run `git diff` and confirm the change contains only the approved design follow-up, implementation-plan/source/renderer work, focused tests, and renderer-generated transition artifacts. Preserve unrelated workspace changes in the meeting-in-progress plan and `opencode.json`.
 
 - [ ] **Step 5: Commit generated pack artifacts**
 
-Use the exact generated-file IDs from `but diff` and commit only those generated outputs:
-
-```bash
-but diff
-```
-
-Run `but commit -b great-wave-transition -m "Regenerate transition pack with Great Wave"` with only the generated output IDs printed by the preceding `but diff`.
+Stage only the renderer-generated outputs by explicit path, then confirm the staged set with `git diff --cached --stat` before committing. Never use `git add -A`: the generated previews and ZIP sit next to unrelated workspace changes.
 
 - [ ] **Step 6: Report the verification boundary**
 

@@ -22,14 +22,17 @@ NAMES = {
     'ocean-drops': ('Ocean Drops', 'Layered ocean ripples expand and roll across the full display.'),
     'prism-loom': ('Prism Loom', 'Color curtains weave around a bright seam, then resolve into a warm glow.'),
     'great-wave': ('Great Wave', 'An original indigo wave curls and rolls across the display in a woodblock-inspired palette.'),
+    'neon-highway': ('Neon Highway', 'A retro cyberpunk sunset anchors a luminous highway while cyan and magenta road lines stream toward the viewer.'),
+    'ghost-parade': ('Ghost Parade', 'Red, pink, cyan, and orange arcade ghosts march across a glowing full-screen backdrop.'),
 }
 STYLES = {'aurora-tide': 'GRADIENT WAVES', 'ocean-drops': 'OCEAN RIPPLE',
-          'prism-loom': 'COLOR CURTAINS', 'great-wave': 'WOODBLOCK WAVE'}
+          'prism-loom': 'COLOR CURTAINS', 'great-wave': 'WOODBLOCK WAVE',
+          'neon-highway': 'CYBERPUNK SUNSET', 'ghost-parade': 'ARCADE GHOSTS'}
 DEFAULT_DURATIONS = {'aurora-tide': 3000, 'ocean-drops': 5000, 'prism-loom': 3000,
-                     'great-wave': 7000}
+                     'great-wave': 7000, 'neon-highway': 7000, 'ghost-parade': 7000}
 MAX_DURATIONS = {'aurora-tide': 5000, 'ocean-drops': 5000, 'prism-loom': 5000,
-                 'great-wave': 7000}
-SEAM_VALIDATED = frozenset({'great-wave'})
+                 'great-wave': 7000, 'neon-highway': 7000, 'ghost-parade': 7000}
+SEAM_VALIDATED = frozenset({'great-wave', 'neon-highway'})
 GIF_FRAME_COUNT = 100
 
 
@@ -252,8 +255,9 @@ def build(berry):
             images = [image_for(f) for f in frames]
             # Build one 256-color palette from the whole animation for stable GIF frames.
             palette_source = Image.new('RGB', (32 * 16, 8 * 13))
-            for sample_index, img in enumerate(images):
-                palette_source.paste(img, ((sample_index % 16) * 32, (sample_index // 16) * 8))
+            for sample_index, frame in enumerate(frames):
+                palette_source.paste(image_for(frame, scale=1),
+                                     ((sample_index % 16) * 32, (sample_index // 16) * 8))
             palette = palette_source.quantize(colors=256, method=Image.Quantize.MEDIANCUT,
                                               dither=Image.Dither.NONE)
             # GIF time uses centiseconds; 100 frames span the registered cycle.
@@ -267,14 +271,19 @@ def build(berry):
             contact.paste(image_for(frames[poster_index]), (32,index*160+28))
             with Image.open(previews / f'{slug}.gif') as gif:
                 total = 0
-                assert gif.n_frames == GIF_FRAME_COUNT, (slug, 'GIF frame count', gif.n_frames)
+                decoded_ticks = []
                 for frame_index in range(gif.n_frames):
                     gif.seek(frame_index)
                     decoded = gif.convert('RGB').tobytes()
-                    expected = gif_frames[frame_index].convert('RGB').tobytes()
-                    assert decoded == expected, (slug, 'GIF pixel mismatch', frame_index)
-                    assert gif.info['duration'] == gif_duration_ms(slug), (slug, 'GIF frame duration', frame_index)
-                    total += gif.info['duration']
+                    frame_duration = gif.info['duration']
+                    assert frame_duration % gif_duration_ms(slug) == 0, (slug, 'GIF frame duration', frame_index)
+                    tick_count = frame_duration // gif_duration_ms(slug)
+                    expected = gif_frames[len(decoded_ticks):len(decoded_ticks) + tick_count]
+                    assert all(decoded == image.convert('RGB').tobytes() for image in expected), (slug, 'GIF pixel mismatch', frame_index)
+                    decoded_ticks.extend([decoded] * tick_count)
+                    total += frame_duration
+                assert len(decoded_ticks) == GIF_FRAME_COUNT, (slug, 'GIF playback tick count', len(decoded_ticks))
+                assert decoded_ticks == [image.convert('RGB').tobytes() for image in gif_frames], (slug, 'GIF playback mismatch')
                 assert total == duration, (slug, total, duration)
             summary.append({'id':slug,'name':title,'description':desc,'durationMs':duration,'style':STYLES.get(slug, 'PIXEL CARTOON'),
                             'sourceBytes':len(source.encode()), 'distinctFrames':len({tuple(f) for f in frames})})

@@ -25,20 +25,45 @@ class TakeoverTests(unittest.TestCase):
 
     def test_snapshot_excludes_owned_names_and_records_display_state(self):
         apps = [FIREPLACE, CODEX, {"name": "Battery", "present": True, "enabled": False, "inLoop": False}]
-        state = snapshot(apps, {"brightness": 120, "autoBrightness": True}, {"Pixel-Fireplace", "pixel-fireplace"})
+        state = snapshot(apps, {"brightness": 120, "autoBrightness": True},
+                         {"Pixel-Fireplace", "pixel-fireplace"}, "codex")
         self.assertEqual(state, {"active": True, "brightness": 120, "autoBrightness": True,
-                                 "order": ["codex"], "disabled": ["Battery"], "activeApp": "Pixel-Fireplace"})
+                                 "order": ["codex"], "disabled": ["Battery"], "activeApp": "codex"})
+
+    def test_snapshot_only_saves_enabled_apps_that_were_in_the_loop(self):
+        apps = [
+            {"name": "active-script", "enabled": True, "inLoop": True, "present": True},
+            {"name": "enabled-paused-script", "origin": "script", "enabled": True,
+             "inLoop": False, "present": False},
+            {"name": "disabled-script", "origin": "script", "enabled": False,
+             "inLoop": True, "present": False},
+        ]
+        state = snapshot(apps, {}, set(), "active-script")
+        self.assertEqual(state["order"], ["active-script"])
+        self.assertEqual(state["disabled"], ["enabled-paused-script", "disabled-script"])
+        self.assertEqual(state["activeApp"], "active-script")
+
+    def test_snapshot_does_not_restore_current_app_outside_saved_loop(self):
+        apps = [{"name": "enabled-paused-script", "enabled": True,
+                 "origin": "script", "inLoop": False, "present": True}]
+        state = snapshot(apps, {}, set(), "enabled-paused-script")
+        self.assertEqual(state["activeApp"], None)
+        self.assertEqual(state["disabled"], ["enabled-paused-script"])
 
     def test_claim_reuses_the_first_snapshot_across_repeated_runs(self):
         self.client.list_apps.side_effect = [(200, [FIREPLACE, CODEX]), (200, [WAVE])]
         self.client.get_settings.return_value = (200, {"brightness": 120, "autoBrightness": True})
+        # The first listed/present app is not necessarily the app on screen.
+        self.client.get_device.return_value = (200, {"currentApp": "codex"})
         first = claim(self.client, self.path, "deskmate-wave", {"deskmate-wave"}, 120, None)
         self.client.get_settings.return_value = (200, {"brightness": 120, "autoBrightness": False})
         second = claim(self.client, self.path, "deskmate-wave", {"deskmate-wave"}, 120, None)
         self.assertEqual(first, second)
         # The wave owns only itself, so the fireplace stays in the restored loop.
-        self.assertEqual(json.loads(self.path.read_text())["order"], ["Pixel-Fireplace", "codex"])
-        self.assertEqual(json.loads(self.path.read_text())["autoBrightness"], True)
+        saved = json.loads(self.path.read_text())
+        self.assertEqual(saved["order"], ["Pixel-Fireplace", "codex"])
+        self.assertEqual(saved["activeApp"], "codex")
+        self.assertEqual(saved["autoBrightness"], True)
 
     def test_claim_defers_when_another_controller_is_active(self):
         other = Path(self.directory.name) / "idle.json"
@@ -64,6 +89,27 @@ class TakeoverTests(unittest.TestCase):
         self.client.patch_settings.assert_called_once_with({"autoBrightness": False, "brightness": 10})
         self.client.activate_app.assert_called_once_with("Pixel-Fireplace", fast=True)
         self.assertFalse(self.path.exists())
+
+    def test_release_does_not_restore_disabled_or_enabled_out_of_loop_scripts(self):
+        self.client.list_apps.return_value = (200, [WAVE, CODEX])
+        save(self.path, {"active": True, "brightness": 50, "autoBrightness": False,
+                         "order": ["active-script"],
+                         "disabled": ["enabled-paused-script", "disabled-script"],
+                         "activeApp": "active-script"})
+        release(self.client, self.path, "deskmate-wave", {"deskmate-wave"})
+        self.client.set_app_order.assert_called_once_with(
+            ["active-script"], ["enabled-paused-script", "disabled-script", "deskmate-wave"])
+        self.client.activate_app.assert_called_once_with("active-script", fast=True)
+
+    def test_release_filters_disabled_apps_from_legacy_snapshot_order(self):
+        self.client.list_apps.return_value = (200, [WAVE])
+        save(self.path, {"active": True, "brightness": 50, "autoBrightness": False,
+                         "order": ["enabled-script", "legacy-disabled"],
+                         "disabled": ["legacy-disabled"], "activeApp": "legacy-disabled"})
+        release(self.client, self.path, "deskmate-wave", {"deskmate-wave"})
+        self.client.set_app_order.assert_called_once_with(
+            ["enabled-script"], ["legacy-disabled", "deskmate-wave"])
+        self.client.activate_app.assert_not_called()
 
     def test_release_keeps_the_owner_script_installed(self):
         self.client.list_apps.return_value = (200, [WAVE, CODEX])

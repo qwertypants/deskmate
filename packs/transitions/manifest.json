@@ -7,28 +7,54 @@
       "name": "Aurora Tide",
       "description": "A luminous aurora sweeps across the display in teal, blue, violet, and coral.",
       "durationMs": 3000,
-      "style": "GRADIENT WAVES"
+      "style": "GRADIENT WAVES",
+      "sourceBytes": 2587,
+      "distinctFrames": 200
     },
     {
       "id": "ocean-drops",
       "name": "Ocean Drops",
       "description": "Layered ocean ripples expand and roll across the full display.",
       "durationMs": 5000,
-      "style": "OCEAN RIPPLE"
+      "style": "OCEAN RIPPLE",
+      "sourceBytes": 2927,
+      "distinctFrames": 200
     },
     {
       "id": "prism-loom",
       "name": "Prism Loom",
       "description": "Color curtains weave around a bright seam, then resolve into a warm glow.",
       "durationMs": 3000,
-      "style": "COLOR CURTAINS"
+      "style": "COLOR CURTAINS",
+      "sourceBytes": 3422,
+      "distinctFrames": 200
     },
     {
       "id": "great-wave",
       "name": "Great Wave",
       "description": "An original indigo wave curls and rolls across the display in a woodblock-inspired palette.",
       "durationMs": 7000,
-      "style": "WOODBLOCK WAVE"
+      "style": "WOODBLOCK WAVE",
+      "sourceBytes": 2594,
+      "distinctFrames": 200
+    },
+    {
+      "id": "neon-highway",
+      "name": "Neon Highway",
+      "description": "A retro cyberpunk sunset anchors a luminous highway while cyan and magenta road lines stream toward the viewer.",
+      "durationMs": 7000,
+      "style": "CYBERPUNK SUNSET",
+      "sourceBytes": 4009,
+      "distinctFrames": 191
+    },
+    {
+      "id": "ghost-parade",
+      "name": "Ghost Parade",
+      "description": "Red, pink, cyan, and orange arcade ghosts march across a glowing full-screen backdrop.",
+      "durationMs": 7000,
+      "style": "ARCADE GHOSTS",
+      "sourceBytes": 2173,
+      "distinctFrames": 142
     }
   ]
 }
