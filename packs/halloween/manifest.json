@@ -100,6 +100,42 @@
       "style": "STOP MOTION",
       "sourceBytes": 2219,
       "distinctFrames": 57
+    },
+    {
+      "id": "vampire-awakens",
+      "name": "Vampire Awakens",
+      "description": "A cloaked vampire wakes beneath a blood moon as bats take flight.",
+      "durationMs": 5000,
+      "style": "ELEGANT GOTHIC",
+      "sourceBytes": 2585,
+      "distinctFrames": 96
+    },
+    {
+      "id": "black-cat-crosses",
+      "name": "Black Cat Crosses",
+      "description": "A sleek black cat slips through the moonlight and disappears.",
+      "durationMs": 5000,
+      "style": "SILHOUETTE",
+      "sourceBytes": 2202,
+      "distinctFrames": 39
+    },
+    {
+      "id": "cat-at-the-window",
+      "name": "Cat at the Window",
+      "description": "A curious cat rises from the darkness, looks around, and sinks away.",
+      "durationMs": 5000,
+      "style": "SILHOUETTE",
+      "sourceBytes": 2054,
+      "distinctFrames": 10
+    },
+    {
+      "id": "skulls-in-space",
+      "name": "Skulls in Space",
+      "description": "Emoji-like skulls drift through empty space at different depths.",
+      "durationMs": 5000,
+      "style": "DEPTH STUDY",
+      "sourceBytes": 3272,
+      "distinctFrames": 118
     }
   ]
 }

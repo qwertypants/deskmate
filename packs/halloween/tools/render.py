@@ -27,9 +27,15 @@ NAMES = {
     'knock-knock': ('Knock Knock', 'A cinematic haunted door creaks open to a surprise visitor.'),
     'hex-spin': ('Hex Spin', 'Geometric spell rings spiral into a tiny magical singularity.'),
     'crawl-call': ('Crawl Call', 'A stop-motion hand tiptoes across the screen and gives a wave.'),
+    'vampire-awakens': ('Vampire Awakens', 'A cloaked vampire wakes beneath a blood moon as bats take flight.'),
+    'black-cat-crosses': ('Black Cat Crosses', 'A sleek black cat slips through the moonlight and disappears.'),
+    'cat-at-the-window': ('Cat at the Window', 'A curious cat rises from the darkness, looks around, and sinks away.'),
+    'skulls-in-space': ('Skulls in Space', 'Emoji-like skulls drift through empty space at different depths.'),
 }
 STYLES = {'witching-hour': 'STORYBOOK', 'bone-boogie': 'RUBBER HOSE',
-          'knock-knock': 'CINEMATIC', 'hex-spin': 'GEOMETRIC', 'crawl-call': 'STOP MOTION'}
+          'knock-knock': 'CINEMATIC', 'hex-spin': 'GEOMETRIC', 'crawl-call': 'STOP MOTION',
+          'vampire-awakens': 'ELEGANT GOTHIC', 'black-cat-crosses': 'SILHOUETTE',
+          'cat-at-the-window': 'SILHOUETTE', 'skulls-in-space': 'DEPTH STUDY'}
 # Drawing functions clip exactly at the simulated 32x8 panel boundary.
 PRELUDE = '''
 import json
@@ -162,7 +168,10 @@ def build(berry):
         images = [image_for(f) for f in frames]
         # GIF time uses centiseconds: sample 20fps for an exact 5000ms cycle.
         palette = Image.new('P', (1, 1))
-        palette.putpalette([0,0,0, 255,136,24, 168,85,247, 148,224,68, 221,248,245] + [0]*753)
+        palette.putpalette([0,0,0, 255,136,24, 168,85,247, 148,224,68, 221,248,245,
+                            7,9,29, 111,120,168, 16,14,40, 240,75,95, 49,32,95,
+                            142,43,131, 255,138,92, 255,216,90, 37,37,37,
+                            48,48,48, 119,119,119, 184,184,184, 255,255,255] + [0]*699)
         gif_frames = [img.quantize(palette=palette, dither=Image.Dither.NONE) for img in images[::2]]
         gif_frames[0].save(previews / f'{slug}.gif', save_all=True, append_images=gif_frames[1:],
                            duration=50, loop=0, optimize=False, disposal=1, background=0)

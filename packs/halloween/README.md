@@ -1,8 +1,8 @@
 # Halloween Spooky Pack · 1.1.0
 
-Eleven tiny frights for the space between your widgets. Original, silent pixel animations for **AWTRIX NG on a 32×8 TC001**, each lasting **5 seconds** by default, adjustable from **1 to 5 seconds** in the app settings.
+Fifteen tiny frights for the space between your widgets. Original, silent pixel animations for **AWTRIX NG on a 32×8 TC001**, each lasting **5 seconds** by default, adjustable from **1 to 5 seconds** in the app settings.
 
-Open `index.html` for the replay gallery. The eleven enlarged GIFs in `previews/` are rendered from the actual Berry scripts with a host drawing adapter. They loop every five seconds; loop repetition is for preview only. On the clock each script plays once per turn.
+Open `index.html` for the replay gallery. The fifteen enlarged GIFs in `previews/` are rendered from the actual Berry scripts with a host drawing adapter. They loop every five seconds; loop repetition is for preview only. On the clock each script plays once per turn.
 
 | Script / install name | Scene |
 | --- | --- |
@@ -17,13 +17,17 @@ Open `index.html` for the replay gallery. The eleven enlarged GIFs in `previews/
 | `knock-knock` | **Cinematic:** a haunted doorway creaks open and slams on a surprise visitor. |
 | `hex-spin` | **Geometric:** stepped spell rings spiral, expand, and collapse into sparks. |
 | `crawl-call` | **Stop-motion:** a detached hand crawls on its fingers, pauses, and waves. |
+| `vampire-awakens` | **Elegant gothic:** a cloaked vampire wakes beneath a blood moon as bats take flight. |
+| `black-cat-crosses` | **Silhouette:** a sleek black cat slips through the moonlight and disappears. |
+| `cat-at-the-window` | **Silhouette:** a curious cat rises from the darkness, looks around, and sinks away. |
+| `skulls-in-space` | **Depth study:** emoji-like skulls drift left to right, with smaller dimmer skulls moving more slowly in the distance. |
 
 ## Install the animations
 
 1. Open your clock's web UI and go to **Scripts**. Create a new script with one of the install names above. Pick an unused name if that name is already taken.
 2. Paste the matching `.be` file and save. Use **Show on the clock** to preview it.
 3. On **Apps**, open that script's settings to change Duration; default is `5000` milliseconds. Saved numeric values are clamped to `1000–5000`.
-4. Drag its app into your preferred place in the rotation. For example: **Time → Bat Outta Here → Calendar → Boo Cruise → Codex**. Install any subset of the eleven.
+4. Drag its app into your preferred place in the rotation. For example: **Time → Bat Outta Here → Calendar → Boo Cruise → Codex**. Install any subset of the fifteen.
 5. For the same animation at several positions, install separate copies under distinct names, such as `boo-cruise-2`. Each copy has its own duration setting.
 
 These are **animated interlude apps**, not custom firmware transition effects. They draw on their own black canvas and do not read or blend the neighboring widgets. Existing device-wide transitions still run on entry and exit and can add time around the animation. For clean cuts, optionally set **transitionDurationMs to 0** in your clock's transition settings; record your previous value to restore it later. This affects all apps and is never changed by these scripts.
@@ -38,11 +42,11 @@ Share `halloween-spooky-pack.zip`, or upload each `.be` script and its matching 
 
 Suggested pack description:
 
-> Eleven little frights for your widget rotation: a bat swarm with a straggler, a ghost with stage presence, a chomping pumpkin, bubbling slime, bouncy spiders, eyes in the dark, a moonlit witch, a dancing skeleton, a haunted door, a geometric spell, and a crawling hand. Silent, self-contained 32×8 Berry scripts. Each scene plays for up to five seconds. Install your favorites and place them between apps.
+> Fifteen little frights for your widget rotation: a bat swarm with a straggler, a ghost with stage presence, a chomping pumpkin, bubbling slime, bouncy spiders, eyes in the dark, a moonlit witch, a dancing skeleton, a haunted door, a geometric spell, a crawling hand, a vampire beneath a blood moon, sleek black cats in the moonlight, and drifting skulls in space. Silent, self-contained 32×8 Berry scripts. Each scene plays for up to five seconds. Install your favorites and place them between apps.
 
 ## Verification and rebuilding
 
-Local verification compiles and executes all eleven original scripts with a real **berry-lang** interpreter. The host adapter implements a clipped 32×8 drawing canvas, a controllable millisecond clock, and the duration store. It checks repeat appearances after interruption, 1/2.5/5-second timing, numeric bounds, moving frames, valid RGB output, and exact 5000ms GIF cycles.
+Local verification compiles and executes all fifteen original scripts with a real **berry-lang** interpreter. The host adapter implements a clipped 32×8 drawing canvas, a controllable millisecond clock, and the duration store. It checks repeat appearances after interruption, 1/2.5/5-second timing, numeric bounds, moving frames, valid RGB output, and exact 5000ms GIF cycles.
 
 This confirms Berry syntax and drawing behavior in the adapter. **AWTRIX firmware integration, physical LED readability/brightness, reboot persistence, and automatic rotation on a TC001 remain unverified until tested on hardware.** A desktop GIF cannot establish those properties. Clock time-wrap behavior is likewise delegated to the firmware time API.
 
