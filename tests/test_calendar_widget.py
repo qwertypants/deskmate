@@ -28,6 +28,7 @@ ONGOING = {"summary": "Private Team sync", "start": {"dateTime": "2026-10-04T15:
            "end": {"dateTime": "2026-10-04T18:00:00Z"}}
 WAVE_APP = {"name": "deskmate-wave", "origin": "script", "present": True,
             "enabled": True, "inLoop": True, "error": None}
+DISABLED_APP = {**APP, "enabled": False, "inLoop": False}
 
 
 class CommandTests(unittest.TestCase):
@@ -50,6 +51,7 @@ class CommandTests(unittest.TestCase):
         self.client = self.factory.return_value
         self.client.list_apps.side_effect = [(200, []), (200, [APP])]
         self.client.get_settings.return_value = (200, {"brightness": 120, "autoBrightness": False})
+        self.client.get_device.return_value = (200, {"currentApp": "google_calendar"})
         self.client.push_app.return_value = 200
 
     def test_pushes_calendar_and_verifies_without_logging_title(self):
@@ -84,7 +86,7 @@ class CommandTests(unittest.TestCase):
         self.clock.side_effect = None
         self.clock.return_value = datetime(2026, 10, 4, 17, 30, tzinfo=timezone.utc)
         self.client.list_apps.side_effect = [(200, [APP]), (200, [APP]),
-                                             (200, [APP]), (200, [APP, WAVE_APP])]
+                                             (200, [APP]), (200, [DISABLED_APP, WAVE_APP])]
         with redirect_stdout(io.StringIO()) as output:
             calendar_widget.run()
         self.client.push_app.assert_not_called()
@@ -246,7 +248,7 @@ class CommandTests(unittest.TestCase):
         self.fetch.return_value = [ONGOING]
         # The wave is absent on the device, so this run installs it.
         self.client.list_apps.side_effect = [(200, [APP]), (200, [APP]),
-                                             (200, [APP]), (200, [APP, WAVE_APP])]
+                                             (200, [APP]), (200, [DISABLED_APP, WAVE_APP])]
         with redirect_stdout(io.StringIO()):
             calendar_widget.run()
         self.client.push_app.assert_not_called()

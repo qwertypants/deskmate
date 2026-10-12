@@ -12,8 +12,10 @@ WAVE = {"name": APP_NAME, "origin": "script", "enabled": True,
         "inLoop": True, "present": True, "error": None}
 CALENDAR = {"name": "google_calendar", "origin": "pushed", "present": True,
             "enabled": True, "inLoop": True}
+DISABLED_CALENDAR = {**CALENDAR, "enabled": False, "inLoop": False}
 FIREPLACE = {"name": "Pixel-Fireplace", "origin": "script", "present": True,
              "enabled": True, "inLoop": True}
+DISABLED_FIREPLACE = {**FIREPLACE, "enabled": False, "inLoop": False}
 
 
 class MeetingModeTests(unittest.TestCase):
@@ -36,7 +38,7 @@ class MeetingModeTests(unittest.TestCase):
 
     def test_enter_installs_verifies_and_takes_the_loop_exclusively(self):
         self.client.list_apps.side_effect = [(200, [CALENDAR]), (200, [WAVE, CALENDAR]),
-                                             (200, [WAVE, CALENDAR])]
+                                             (200, [WAVE, DISABLED_CALENDAR])]
         self.client.get_settings.return_value = (200, {"brightness": 120, "autoBrightness": True})
         state = enter(self.client, self.state, self.idle, 120)
         self.client.install_script.assert_called_once()
@@ -45,6 +47,37 @@ class MeetingModeTests(unittest.TestCase):
         self.assertIn("# @name Great Wave", source)
         self.client.set_app_order.assert_called_once_with([APP_NAME], [CALENDAR["name"]])
         self.assertEqual(state["order"], ["google_calendar"])
+
+    def test_enter_reasserts_order_once_when_another_app_remains_in_loop(self):
+        self.client.list_apps.side_effect = [
+            (200, [CALENDAR]), (200, [WAVE, CALENDAR]), (200, [WAVE, CALENDAR]),
+            (200, [WAVE, DISABLED_CALENDAR]),
+        ]
+        self.client.get_settings.return_value = (200, {"brightness": 120})
+
+        enter(self.client, self.state, self.idle, 120)
+
+        expected_order = ([APP_NAME], [CALENDAR["name"]])
+        self.assertEqual([call.args for call in self.client.set_app_order.call_args_list],
+                         [expected_order, expected_order])
+        self.assertEqual(self.client.activate_app.call_count, 2)
+        self.client.activate_app.assert_called_with(APP_NAME)
+
+    def test_enter_reports_persistent_extra_loop_app(self):
+        self.client.list_apps.side_effect = [
+            (200, [CALENDAR]), (200, [WAVE, CALENDAR]), (200, [WAVE, CALENDAR]),
+            (200, [WAVE, CALENDAR]),
+        ]
+        self.client.get_settings.return_value = (200, {"brightness": 120})
+
+        with self.assertRaisesRegex(ValueError, "extra active loop apps: google_calendar"):
+            enter(self.client, self.state, self.idle, 120)
+
+        expected_order = ([APP_NAME], [CALENDAR["name"]])
+        self.assertEqual([call.args for call in self.client.set_app_order.call_args_list],
+                         [expected_order, expected_order])
+        self.assertEqual(self.client.activate_app.call_count, 2)
+        self.client.activate_app.assert_called_with(APP_NAME)
 
     def test_enter_refuses_a_non_script_collision(self):
         self.client.list_apps.return_value = (200, [{"name": APP_NAME, "origin": "pushed", "present": True}])
@@ -65,8 +98,9 @@ class MeetingModeTests(unittest.TestCase):
             enter(self.client, self.state, self.idle, 120)
 
     def test_enter_reuses_the_installed_script_on_a_later_meeting(self):
-        self.client.list_apps.side_effect = [(200, [WAVE, CALENDAR]), (200, [WAVE, CALENDAR]),
-                                             (200, [WAVE, CALENDAR])]
+        self.client.list_apps.side_effect = [(200, [WAVE, DISABLED_CALENDAR]),
+                                             (200, [WAVE, DISABLED_CALENDAR]),
+                                             (200, [WAVE, DISABLED_CALENDAR])]
         self.client.get_settings.return_value = (200, {"brightness": 120})
         enter(self.client, self.state, self.idle, 120)
         self.client.install_script.assert_not_called()
@@ -78,7 +112,7 @@ class MeetingModeTests(unittest.TestCase):
         # During idle the live loop holds only the dimmed fireplace; the wave
         # snapshots that from the device, not from the idle state file.
         self.client.list_apps.side_effect = [(200, [CALENDAR]), (200, [FIREPLACE]),
-                                             (200, [WAVE, FIREPLACE])]
+                                             (200, [WAVE, DISABLED_FIREPLACE])]
         self.client.get_settings.return_value = (200, {"brightness": 10, "autoBrightness": False})
         self.client.get_device.return_value = (200, {"currentApp": "Pixel-Fireplace"})
         state = enter(self.client, self.state, self.idle, 120)
