@@ -32,19 +32,19 @@ class TransitionTimingTests(unittest.TestCase):
         self.assertEqual(gif_duration_ms("ocean-drops") * 100, 5000)
 
     def test_exact_cycle_seam_is_opt_in(self):
-        self.assertEqual(render.SEAM_VALIDATED, frozenset({"great-wave"}))
+        self.assertEqual(render.SEAM_VALIDATED, frozenset({"great-wave", "neon-highway"}))
         for slug in render.NAMES:
             with self.subTest(slug=slug), patch.object(render, "execute") as execute:
                 render.verify("berry", "source", DEFAULT_DURATIONS[slug],
                               MAX_DURATIONS[slug], slug in render.SEAM_VALIDATED)
                 script = execute.call_args.args[2]
                 seam_clock = f"clock=10000+{DEFAULT_DURATIONS[slug]} clear() app.draw()"
-                self.assertEqual(seam_clock in script, slug == "great-wave")
+                self.assertEqual(seam_clock in script, slug in render.SEAM_VALIDATED)
                 self.assertIn("clock=500000 app.on_show()", script)
                 self.assertIn("configured=750 app.on_show() assert(app.duration()==1000)", script)
                 self.assertIn(f"configured=9000 app.on_show() assert(app.duration()=={MAX_DURATIONS[slug]})", script)
 
-    def test_near_seam_delta_is_checked_only_for_great_wave(self):
+    def test_near_seam_delta_is_checked_for_seam_validated_animations(self):
         for slug in render.NAMES:
             with self.subTest(slug=slug), patch.object(render, "execute") as execute:
                 duration = DEFAULT_DURATIONS[slug]
@@ -53,11 +53,11 @@ class TransitionTimingTests(unittest.TestCase):
                 script = execute.call_args.args[2]
                 for offset in ("-50", "-25", "", "+25", "+50"):
                     sample = f"clock=10000+{duration}{offset} clear() app.draw()"
-                    self.assertEqual(sample in script, slug == "great-wave")
+                    self.assertEqual(sample in script, slug in render.SEAM_VALIDATED)
                 self.assertEqual("var seam_delta=max(frame_delta(before,at),frame_delta(at,after))" in script,
-                                 slug == "great-wave")
-                self.assertEqual("assert(seam_delta<=160)" in script, slug == "great-wave")
-                self.assertEqual("assert(seam_delta<=nearby*2+8)" in script, slug == "great-wave")
+                                 slug in render.SEAM_VALIDATED)
+                self.assertEqual("assert(seam_delta<=160)" in script, slug in render.SEAM_VALIDATED)
+                self.assertEqual("assert(seam_delta<=nearby*2+8)" in script, slug in render.SEAM_VALIDATED)
         self.assertIn("def frame_delta(a,b)", render.PRELUDE)
         self.assertIn("for i : 0..255", render.PRELUDE)
         self.assertIn("if delta > largest largest = delta end", render.PRELUDE)
@@ -71,7 +71,7 @@ class TransitionTimingTests(unittest.TestCase):
         self.assertNotIn("&& foam >", source)
         self.assertNotIn("&& hook >", source)
 
-    def test_build_passes_seam_flag_only_for_great_wave(self):
+    def test_build_passes_seam_flag_for_seam_validated_animations(self):
         for slug in render.NAMES:
             with self.subTest(slug=slug), tempfile.TemporaryDirectory() as temp:
                 Path(temp, f"{slug}.be").write_text("source")
@@ -81,7 +81,7 @@ class TransitionTimingTests(unittest.TestCase):
                         patch.object(render, "frames_for", side_effect=RuntimeError("stop after verify")):
                     with self.assertRaisesRegex(RuntimeError, "stop after verify"):
                         render.build("berry")
-                    self.assertEqual(verify.call_args.args[-1], slug == "great-wave")
+                    self.assertEqual(verify.call_args.args[-1], slug in render.SEAM_VALIDATED)
 
 
 class FrameValidationTests(unittest.TestCase):

@@ -29,6 +29,20 @@
       "description": "An original indigo wave curls and rolls across the display in a woodblock-inspired palette.",
       "durationMs": 7000,
       "style": "WOODBLOCK WAVE"
+    },
+    {
+      "id": "neon-highway",
+      "name": "Neon Highway",
+      "description": "A retro cyberpunk sunset anchors a luminous highway while cyan and magenta road lines stream toward the viewer.",
+      "durationMs": 7000,
+      "style": "CYBERPUNK SUNSET"
+    },
+    {
+      "id": "ghost-parade",
+      "name": "Ghost Parade",
+      "description": "Red, pink, cyan, and orange arcade ghosts march across a glowing full-screen backdrop.",
+      "durationMs": 7000,
+      "style": "ARCADE GHOSTS"
     }
   ]
 }

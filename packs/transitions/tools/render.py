@@ -22,14 +22,17 @@ NAMES = {
     'ocean-drops': ('Ocean Drops', 'Layered ocean ripples expand and roll across the full display.'),
     'prism-loom': ('Prism Loom', 'Color curtains weave around a bright seam, then resolve into a warm glow.'),
     'great-wave': ('Great Wave', 'An original indigo wave curls and rolls across the display in a woodblock-inspired palette.'),
+    'neon-highway': ('Neon Highway', 'A retro cyberpunk sunset anchors a luminous highway while cyan and magenta road lines stream toward the viewer.'),
+    'ghost-parade': ('Ghost Parade', 'Red, pink, cyan, and orange arcade ghosts march across a glowing full-screen backdrop.'),
 }
 STYLES = {'aurora-tide': 'GRADIENT WAVES', 'ocean-drops': 'OCEAN RIPPLE',
-          'prism-loom': 'COLOR CURTAINS', 'great-wave': 'WOODBLOCK WAVE'}
+          'prism-loom': 'COLOR CURTAINS', 'great-wave': 'WOODBLOCK WAVE',
+          'neon-highway': 'CYBERPUNK SUNSET', 'ghost-parade': 'ARCADE GHOSTS'}
 DEFAULT_DURATIONS = {'aurora-tide': 3000, 'ocean-drops': 5000, 'prism-loom': 3000,
-                     'great-wave': 7000}
+                     'great-wave': 7000, 'neon-highway': 7000, 'ghost-parade': 7000}
 MAX_DURATIONS = {'aurora-tide': 5000, 'ocean-drops': 5000, 'prism-loom': 5000,
-                 'great-wave': 7000}
-SEAM_VALIDATED = frozenset({'great-wave'})
+                 'great-wave': 7000, 'neon-highway': 7000, 'ghost-parade': 7000}
+SEAM_VALIDATED = frozenset({'great-wave', 'neon-highway'})
 GIF_FRAME_COUNT = 100
 
 
@@ -252,8 +255,9 @@ def build(berry):
             images = [image_for(f) for f in frames]
             # Build one 256-color palette from the whole animation for stable GIF frames.
             palette_source = Image.new('RGB', (32 * 16, 8 * 13))
-            for sample_index, img in enumerate(images):
-                palette_source.paste(img, ((sample_index % 16) * 32, (sample_index // 16) * 8))
+            for sample_index, frame in enumerate(frames):
+                palette_source.paste(image_for(frame, scale=1),
+                                     ((sample_index % 16) * 32, (sample_index // 16) * 8))
             palette = palette_source.quantize(colors=256, method=Image.Quantize.MEDIANCUT,
                                               dither=Image.Dither.NONE)
             # GIF time uses centiseconds; 100 frames span the registered cycle.
