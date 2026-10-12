@@ -52,6 +52,12 @@ class Awtrix:
             raise ValueError("AWTRIX returned an invalid app list")
         return status, body
 
+    def get_device(self):
+        status, body = self._request("GET", "/api/v1/device")
+        if not isinstance(body, dict):
+            raise ValueError("AWTRIX returned invalid device state")
+        return status, body
+
     def get_settings(self):
         status, body = self._request("GET", "/api/v1/settings")
         if not isinstance(body, dict):

@@ -4,11 +4,11 @@ from pathlib import Path
 import sys
 import tempfile
 import unittest
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 from zoneinfo import ZoneInfo
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-from idle_mode import config, enter, exit_mode, in_idle_window
+from idle_mode import config, enter, exit_mode, in_idle_window, run
 
 
 class IdleModeTests(unittest.TestCase):
@@ -35,12 +35,13 @@ class IdleModeTests(unittest.TestCase):
                     "inLoop": True, "present": True}
         client.list_apps.side_effect = [(200, [original]), (200, [original]), (200, [original])]
         client.get_settings.return_value = (200, {"brightness": 120, "autoBrightness": True})
+        client.get_device.return_value = (200, {"currentApp": "Pixel-Fireplace"})
         with tempfile.TemporaryDirectory() as temp:
             path = Path(temp) / "state.json"
             enter(client, path, 10)
             state = json.loads(path.read_text())
             self.assertEqual(state, {"active": True, "brightness": 120, "autoBrightness": True,
-                                     "order": [], "disabled": [], "activeApp": "Pixel-Fireplace"})
+                                     "order": [], "disabled": [], "activeApp": None})
 
     def test_exit_restores_and_disables_original_without_removing_it(self):
         client = Mock()
@@ -55,4 +56,39 @@ class IdleModeTests(unittest.TestCase):
             client.patch_settings.assert_called_once_with({"autoBrightness": True, "brightness": 120})
             client.activate_app.assert_called_once_with("codex", fast=True)
             client.delete_app.assert_not_called()
+            self.assertFalse(path.exists())
+
+    def test_reboot_sync_restores_saved_apps_outside_idle_window(self):
+        zone = ZoneInfo("America/New_York")
+        client = Mock()
+        client.list_apps.return_value = (200, [
+            {"name": "Pixel-Fireplace", "origin": "script"},
+            {"name": "codex", "origin": "pushed"},
+            {"name": "google_calendar", "origin": "pushed"},
+            {"name": "paused-script", "origin": "script"},
+            {"name": "disabled-script", "origin": "script"},
+        ])
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / "idle-state.json"
+            path.write_text(json.dumps({
+                "active": True,
+                "brightness": 48,
+                "autoBrightness": True,
+                "order": ["codex", "google_calendar"],
+                "disabled": ["paused-script", "disabled-script"],
+                "activeApp": "codex",
+            }))
+            now = datetime(2026, 10, 6, 9, 0, tzinfo=zone)
+            with patch("idle_mode.config", return_value=(zone, 10, path)), \
+                    patch("idle_mode.Awtrix", return_value=client), \
+                    patch("idle_mode.datetime") as mocked_datetime:
+                mocked_datetime.now.return_value = now
+                run("sync")
+
+            client.set_app_order.assert_called_once_with(
+                ["codex", "google_calendar"],
+                ["paused-script", "disabled-script", "Pixel-Fireplace"])
+            client.patch_settings.assert_called_once_with(
+                {"autoBrightness": True, "brightness": 48})
+            client.activate_app.assert_called_once_with("codex", fast=True)
             self.assertFalse(path.exists())
