@@ -23,6 +23,7 @@ class MeetingModeTests(unittest.TestCase):
         base = Path(self.directory.name)
         self.state, self.idle = base / "wave.json", base / "idle.json"
         self.client = Mock()
+        self.client.get_device.return_value = (200, {"currentApp": "google_calendar"})
 
     def test_source_is_the_shipped_seven_second_wave(self):
         source = wave_source()
@@ -79,6 +80,7 @@ class MeetingModeTests(unittest.TestCase):
         self.client.list_apps.side_effect = [(200, [CALENDAR]), (200, [FIREPLACE]),
                                              (200, [WAVE, FIREPLACE])]
         self.client.get_settings.return_value = (200, {"brightness": 10, "autoBrightness": False})
+        self.client.get_device.return_value = (200, {"currentApp": "Pixel-Fireplace"})
         state = enter(self.client, self.state, self.idle, 120)
         # The wave snapshotted the dimmed idle state, so the fireplace resumes as it was.
         self.assertEqual(state["brightness"], 10)
