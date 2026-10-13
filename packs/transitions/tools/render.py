@@ -24,15 +24,19 @@ NAMES = {
     'great-wave': ('Great Wave', 'An original indigo wave curls and rolls across the display in a woodblock-inspired palette.'),
     'neon-highway': ('Neon Highway', 'A retro cyberpunk sunset anchors a luminous highway while cyan and magenta road lines stream toward the viewer.'),
     'ghost-parade': ('Ghost Parade', 'Red, pink, cyan, and orange arcade ghosts march across a glowing full-screen backdrop.'),
+    'mushroom-run': ('Mushroom Run', 'Mario hits a question block, grabs a mushroom, grows, and runs past a green pipe beneath a bright 8-bit sky.'),
 }
 STYLES = {'aurora-tide': 'GRADIENT WAVES', 'ocean-drops': 'OCEAN RIPPLE',
           'prism-loom': 'COLOR CURTAINS', 'great-wave': 'WOODBLOCK WAVE',
-          'neon-highway': 'CYBERPUNK SUNSET', 'ghost-parade': 'ARCADE GHOSTS'}
+          'neon-highway': 'CYBERPUNK SUNSET', 'ghost-parade': 'ARCADE GHOSTS',
+          'mushroom-run': '8-BIT PLATFORMER'}
 DEFAULT_DURATIONS = {'aurora-tide': 3000, 'ocean-drops': 5000, 'prism-loom': 3000,
-                     'great-wave': 7000, 'neon-highway': 7000, 'ghost-parade': 7000}
+                     'great-wave': 7000, 'neon-highway': 7000, 'ghost-parade': 7000,
+                     'mushroom-run': 7000}
 MAX_DURATIONS = {'aurora-tide': 5000, 'ocean-drops': 5000, 'prism-loom': 5000,
-                 'great-wave': 7000, 'neon-highway': 7000, 'ghost-parade': 7000}
-SEAM_VALIDATED = frozenset({'great-wave', 'neon-highway'})
+                 'great-wave': 7000, 'neon-highway': 7000, 'ghost-parade': 7000,
+                 'mushroom-run': 7000}
+SEAM_VALIDATED = frozenset({'great-wave', 'neon-highway', 'mushroom-run'})
 GIF_FRAME_COUNT = 100
 
 

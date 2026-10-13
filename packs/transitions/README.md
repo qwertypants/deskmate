@@ -1,8 +1,8 @@
 # Color Current — AWTRIX Transition Pack
 
-Color Current is a set of six original full-screen interludes for AWTRIX NG's 32 × 8 display. Aurora gradients, ocean ripples, prism curtains, an indigo wave, a cyberpunk highway, and a parade of colorful arcade ghosts fill all 256 pixels in every animation frame.
+Color Current is a set of seven full-screen interludes for AWTRIX NG's 32 × 8 display. Aurora gradients, ocean ripples, prism curtains, an indigo wave, a cyberpunk highway, arcade ghosts, and an 8-bit mushroom power-up sequence fill all 256 pixels in every animation frame.
 
-The Berry scripts run between widget apps as interludes. They do not replace the firmware's native transition effects. Aurora Tide and Prism Loom default to three seconds; Ocean Drops defaults to five seconds; Great Wave, Neon Highway, and Ghost Parade default to seven seconds. The first three support one to five seconds, and the last three support one to seven seconds.
+The Berry scripts run between widget apps as interludes. They do not replace the firmware's native transition effects. Aurora Tide and Prism Loom default to three seconds; Ocean Drops defaults to five seconds; Great Wave, Neon Highway, Ghost Parade, and Mushroom Run default to seven seconds. The first three support one to five seconds, and the remaining animations support one to seven seconds.
 
 ## Pack contents
 
@@ -12,6 +12,7 @@ The Berry scripts run between widget apps as interludes. They do not replace the
 - `great-wave.be` — a curling indigo wave with pale foam highlights.
 - `neon-highway.be` — a fixed pink-orange sunset above a moving cyan and magenta perspective highway.
 - `ghost-parade.be` — red, pink, cyan, and orange arcade ghosts march together from left to right.
+- `mushroom-run.be` — Mario hits a question block, grabs a mushroom, grows, and runs past a green pipe beneath a bright 8-bit sky.
 - `manifest.json` — animation metadata for the pack.
 - `previews/*.png` — cover frames rendered from Berry source.
 - `previews/*.gif` — animated previews rendered from Berry source.

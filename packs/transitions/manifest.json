@@ -55,6 +55,15 @@
       "style": "ARCADE GHOSTS",
       "sourceBytes": 2173,
       "distinctFrames": 142
+    },
+    {
+      "id": "mushroom-run",
+      "name": "Mushroom Run",
+      "description": "Mario hits a question block, grabs a mushroom, grows, and runs past a green pipe beneath a bright 8-bit sky.",
+      "durationMs": 7000,
+      "style": "8-BIT PLATFORMER",
+      "sourceBytes": 6781,
+      "distinctFrames": 78
     }
   ]
 }

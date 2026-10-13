@@ -32,7 +32,7 @@ class TransitionTimingTests(unittest.TestCase):
         self.assertEqual(gif_duration_ms("ocean-drops") * 100, 5000)
 
     def test_exact_cycle_seam_is_opt_in(self):
-        self.assertEqual(render.SEAM_VALIDATED, frozenset({"great-wave", "neon-highway"}))
+        self.assertEqual(render.SEAM_VALIDATED, frozenset({"great-wave", "neon-highway", "mushroom-run"}))
         for slug in render.NAMES:
             with self.subTest(slug=slug), patch.object(render, "execute") as execute:
                 render.verify("berry", "source", DEFAULT_DURATIONS[slug],
