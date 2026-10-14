@@ -42,13 +42,12 @@ def snapshot(apps, settings, owner_names, current_app=None):
     return {"active": True,
             "brightness": settings.get("brightness", 120),
             "autoBrightness": settings.get("autoBrightness", False),
-            # Only apps that can actually run belong in the saved loop. Older
-            # snapshots could include disabled apps here when AWTRIX reported
-            # inLoop=True for them; enabled apps outside the loop stay omitted.
+            # Only enabled apps in the loop belong in the saved order. Keep
+            # enabled apps outside the loop out of both lists so they remain
+            # enabled without being added to rotation on release.
             "order": order,
             "disabled": [app["name"] for app in apps
-                         if (not app.get("enabled") or
-                             (app.get("origin") == "script" and app.get("inLoop") is not True))
+                         if not app.get("enabled")
                          and app["name"] not in owner_names],
             # Presence is not the same as the app currently on the display.
             # Save only a current app that will be restored to the loop.

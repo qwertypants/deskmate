@@ -40,7 +40,7 @@ class TakeoverTests(unittest.TestCase):
         ]
         state = snapshot(apps, {}, set(), "active-script")
         self.assertEqual(state["order"], ["active-script"])
-        self.assertEqual(state["disabled"], ["enabled-paused-script", "disabled-script"])
+        self.assertEqual(state["disabled"], ["disabled-script"])
         self.assertEqual(state["activeApp"], "active-script")
 
     def test_snapshot_does_not_restore_current_app_outside_saved_loop(self):
@@ -48,7 +48,7 @@ class TakeoverTests(unittest.TestCase):
                  "origin": "script", "inLoop": False, "present": True}]
         state = snapshot(apps, {}, set(), "enabled-paused-script")
         self.assertEqual(state["activeApp"], None)
-        self.assertEqual(state["disabled"], ["enabled-paused-script"])
+        self.assertEqual(state["disabled"], [])
 
     def test_claim_reuses_the_first_snapshot_across_repeated_runs(self):
         self.client.list_apps.side_effect = [(200, [FIREPLACE, CODEX]), (200, [WAVE])]
@@ -90,15 +90,15 @@ class TakeoverTests(unittest.TestCase):
         self.client.activate_app.assert_called_once_with("Pixel-Fireplace", fast=True)
         self.assertFalse(self.path.exists())
 
-    def test_release_does_not_restore_disabled_or_enabled_out_of_loop_scripts(self):
+    def test_release_preserves_disabled_and_enabled_out_of_loop_scripts(self):
         self.client.list_apps.return_value = (200, [WAVE, CODEX])
         save(self.path, {"active": True, "brightness": 50, "autoBrightness": False,
                          "order": ["active-script"],
-                         "disabled": ["enabled-paused-script", "disabled-script"],
+                         "disabled": ["disabled-script"],
                          "activeApp": "active-script"})
         release(self.client, self.path, "deskmate-wave", {"deskmate-wave"})
         self.client.set_app_order.assert_called_once_with(
-            ["active-script"], ["enabled-paused-script", "disabled-script", "deskmate-wave"])
+            ["active-script"], ["disabled-script", "deskmate-wave"])
         self.client.activate_app.assert_called_once_with("active-script", fast=True)
 
     def test_release_filters_disabled_apps_from_legacy_snapshot_order(self):
