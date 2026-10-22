@@ -64,6 +64,24 @@
       "style": "8-BIT PLATFORMER",
       "sourceBytes": 6781,
       "distinctFrames": 78
+    },
+    {
+      "id": "space-invaders",
+      "name": "Space Invaders",
+      "description": "A pixel spaceship sweeps beneath a descending invader wave, firing until the screen clears.",
+      "durationMs": 7000,
+      "style": "ARCADE SHOOTER",
+      "sourceBytes": 3945,
+      "distinctFrames": 111
+    },
+    {
+      "id": "nyc-after-dark",
+      "name": "NYC After Dark",
+      "description": "Stars and drifting clouds reveal a glowing Manhattan skyline rising into the night.",
+      "durationMs": 7000,
+      "style": "CITY NIGHTFALL",
+      "sourceBytes": 2959,
+      "distinctFrames": 33
     }
   ]
 }

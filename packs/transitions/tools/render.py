@@ -25,18 +25,21 @@ NAMES = {
     'neon-highway': ('Neon Highway', 'A retro cyberpunk sunset anchors a luminous highway while cyan and magenta road lines stream toward the viewer.'),
     'ghost-parade': ('Ghost Parade', 'Red, pink, cyan, and orange arcade ghosts march across a glowing full-screen backdrop.'),
     'mushroom-run': ('Mushroom Run', 'Mario hits a question block, grabs a mushroom, grows, and runs past a green pipe beneath a bright 8-bit sky.'),
+    'space-invaders': ('Space Invaders', 'A pixel spaceship sweeps beneath a descending invader wave, firing until the screen clears.'),
+    'nyc-after-dark': ('NYC After Dark', 'Stars and drifting clouds reveal a glowing Manhattan skyline rising into the night.'),
 }
 STYLES = {'aurora-tide': 'GRADIENT WAVES', 'ocean-drops': 'OCEAN RIPPLE',
           'prism-loom': 'COLOR CURTAINS', 'great-wave': 'WOODBLOCK WAVE',
           'neon-highway': 'CYBERPUNK SUNSET', 'ghost-parade': 'ARCADE GHOSTS',
-          'mushroom-run': '8-BIT PLATFORMER'}
+          'mushroom-run': '8-BIT PLATFORMER', 'space-invaders': 'ARCADE SHOOTER',
+          'nyc-after-dark': 'CITY NIGHTFALL'}
 DEFAULT_DURATIONS = {'aurora-tide': 3000, 'ocean-drops': 5000, 'prism-loom': 3000,
                      'great-wave': 7000, 'neon-highway': 7000, 'ghost-parade': 7000,
-                     'mushroom-run': 7000}
+                     'mushroom-run': 7000, 'space-invaders': 7000, 'nyc-after-dark': 7000}
 MAX_DURATIONS = {'aurora-tide': 5000, 'ocean-drops': 5000, 'prism-loom': 5000,
                  'great-wave': 7000, 'neon-highway': 7000, 'ghost-parade': 7000,
-                 'mushroom-run': 7000}
-SEAM_VALIDATED = frozenset({'great-wave', 'neon-highway', 'mushroom-run'})
+                 'mushroom-run': 7000, 'space-invaders': 7000, 'nyc-after-dark': 7000}
+SEAM_VALIDATED = frozenset({'great-wave', 'neon-highway', 'mushroom-run', 'space-invaders'})
 GIF_FRAME_COUNT = 100
 
 
@@ -177,12 +180,12 @@ def image_for(frame, scale=16):
     return image.resize((32*scale,8*scale), Image.Resampling.NEAREST)
 
 
-def validate_frames(frames, slug):
+def validate_frames(frames, slug, allow_black=False):
     assert len(frames) == 200, f'{slug}: expected 200 frames'
     assert all(len(frame) == 256 for frame in frames), f'{slug}: expected 256 pixels per frame'
     assert all(type(color) is int and 0 <= color <= 0xFFFFFF for frame in frames for color in frame), \
         f'{slug}: invalid RGB color'
-    assert all(color != 0 for frame in frames for color in frame), \
+    assert allow_black or all(color != 0 for frame in frames for color in frame), \
         f'{slug}: every pixel must be colored in every frame'
 
 
@@ -252,8 +255,9 @@ def build(berry):
             verify(berry, source, duration, MAX_DURATIONS[slug], slug in SEAM_VALIDATED)
             frames = frames_for(berry, source, duration)
             short = frames_for(berry, source, 1000)
-            validate_frames(frames, slug)
-            validate_frames(short, slug)
+            allow_black = slug == 'space-invaders'
+            validate_frames(frames, slug, allow_black=allow_black)
+            validate_frames(short, slug, allow_black=allow_black)
             assert len({tuple(f) for f in frames}) >= 15, f'{slug}: insufficient motion'
             assert len({c for f in frames for c in f}) >= 8, f'{slug}: insufficient color variation'
             images = [image_for(f) for f in frames]

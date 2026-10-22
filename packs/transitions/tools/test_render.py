@@ -18,12 +18,24 @@ class TransitionTimingTests(unittest.TestCase):
             [animation["id"] for animation in manifest["animations"]],
             list(render.NAMES),
         )
+        self.assertEqual(manifest["animations"][-1]["id"], "nyc-after-dark")
         self.assertEqual(manifest["animations"][-1]["durationMs"], 7000)
+
+    def test_nyc_after_dark_is_a_seven_second_animation(self):
+        self.assertEqual(DEFAULT_DURATIONS["nyc-after-dark"], 7000)
+        self.assertEqual(MAX_DURATIONS["nyc-after-dark"], 7000)
+        self.assertEqual(gif_duration_ms("nyc-after-dark"), 70)
 
     def test_great_wave_is_a_seven_second_animation(self):
         self.assertEqual(DEFAULT_DURATIONS["great-wave"], 7000)
         self.assertEqual(MAX_DURATIONS["great-wave"], 7000)
         self.assertEqual(gif_duration_ms("great-wave"), 70)
+
+    def test_space_invaders_is_a_seven_second_seam_checked_animation(self):
+        self.assertEqual(DEFAULT_DURATIONS["space-invaders"], 7000)
+        self.assertEqual(MAX_DURATIONS["space-invaders"], 7000)
+        self.assertEqual(gif_duration_ms("space-invaders"), 70)
+        self.assertIn("space-invaders", render.SEAM_VALIDATED)
 
     def test_existing_animation_durations_remain_unchanged(self):
         self.assertEqual(DEFAULT_DURATIONS["aurora-tide"], 3000)
@@ -32,7 +44,8 @@ class TransitionTimingTests(unittest.TestCase):
         self.assertEqual(gif_duration_ms("ocean-drops") * 100, 5000)
 
     def test_exact_cycle_seam_is_opt_in(self):
-        self.assertEqual(render.SEAM_VALIDATED, frozenset({"great-wave", "neon-highway", "mushroom-run"}))
+        self.assertEqual(render.SEAM_VALIDATED,
+                         frozenset({"great-wave", "neon-highway", "mushroom-run", "space-invaders"}))
         for slug in render.NAMES:
             with self.subTest(slug=slug), patch.object(render, "execute") as execute:
                 render.verify("berry", "source", DEFAULT_DURATIONS[slug],
@@ -118,6 +131,14 @@ class FrameValidationTests(unittest.TestCase):
                     patch.object(render, "frames_for", side_effect=(frames, short)):
                 with self.assertRaisesRegex(AssertionError, "every pixel must be colored"):
                     render.build("berry")
+
+    def test_space_invaders_frames_allow_a_black_space_background(self):
+        frames = [[0] * 256 for _ in range(200)]
+        for index, frame in enumerate(frames):
+            frame[index % 256] = 0x00DDF5
+        render.validate_frames(frames, "space-invaders", allow_black=True)
+        with self.assertRaisesRegex(AssertionError, "every pixel must be colored"):
+            render.validate_frames(frames, "sample")
 
     def test_failed_later_animation_preserves_published_outputs(self):
         frames = self.sample_frames()
