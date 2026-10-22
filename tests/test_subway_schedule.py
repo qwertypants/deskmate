@@ -29,8 +29,9 @@ def archive(**overrides):
                           "three,12:25:00,12:25:00,127S,2,0,0\n"
                           "two,12:10:00,12:10:00,224S,1,0,0\n"
                           "two,12:28:00,12:28:00,127S,2,0,0\n"
-                          "seven,12:32:00,12:32:00,725S,1,0,0\n"
-                          "seven,12:35:00,12:35:00,726S,2,0,0\n"
+                          "seven,12:08:00,12:08:00,701S,1,0,0\n"
+                          "seven,12:32:00,12:32:00,725S,2,0,0\n"
+                          "seven,12:35:00,12:35:00,726S,3,0,0\n"
                           "one,12:08:00,12:08:00,224S,1,0,0\n",
         "transfers.txt": "from_stop_id,to_stop_id,transfer_type,min_transfer_time\n127,725,2,180\n",
     }
@@ -49,6 +50,23 @@ class ScheduleTests(unittest.TestCase):
         self.assertEqual(transfer, 180)
         self.assertEqual([(l.route, l.start - NOW, l.end - NOW) for l in legs],
                          [("3", 510, 1500), ("2", 600, 1680), ("7", 1920, 2100)])
+        self.assertEqual(legs[-1].origin_start, NOW + 480)
+
+    def test_scheduled_seven_origin_time_is_retained_for_replacement_filtering(self):
+        data = archive(**{"stop_times.txt": "trip_id,arrival_time,departure_time,stop_id,stop_sequence\n"
+                          "seven,12:10:00,12:10:00,701S,1\n"
+                          "seven,12:45:00,12:45:00,725S,2\n"
+                          "seven,12:48:00,12:48:00,726S,3\n"})
+        legs, _ = parse_schedule(data, NOW)
+        seven = next(leg for leg in legs if leg.route == "7")
+        self.assertEqual(seven.start, NOW + 45 * 60)
+        self.assertEqual(seven.origin_start, NOW + 10 * 60)
+
+    def test_compaction_keeps_first_seven_stop_for_origin_time(self):
+        compact = compact_schedule(archive())
+        with zipfile.ZipFile(io.BytesIO(compact)) as z:
+            rows = z.read("stop_times.txt").decode()
+        self.assertIn("seven,12:08:00,12:08:00,701S,1,0,0", rows)
 
     def test_compaction_preserves_parsing_and_discards_unrelated_routes(self):
         original = archive()

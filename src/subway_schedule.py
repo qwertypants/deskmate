@@ -43,14 +43,27 @@ def compact_schedule(data):
         if sum(info.file_size for info in source.infolist()) > 240_000_000:
             raise ValueError("MTA schedule exceeds expanded size limit")
         trips = [r for r in rows(source, "trips.txt") if r["route_id"] in LEGS]
-        trip_ids = {r["trip_id"] for r in trips}
+        trip_routes = {r["trip_id"]: r["route_id"] for r in trips}
+        trip_ids = set(trip_routes)
         stops = {stop for pair in LEGS.values() for stop in pair}
+        first_seven_stops = {}
+        for row in rows(source, "stop_times.txt"):
+            trip_id = row["trip_id"]
+            if trip_routes.get(trip_id) in ("7", "7X"):
+                previous = first_seven_stops.get(trip_id)
+                if previous is None or int(row["stop_sequence"]) < int(previous["stop_sequence"]):
+                    first_seven_stops[trip_id] = row
+        first_seven_keys = {(r["trip_id"], r["stop_id"], r["stop_sequence"])
+                            for r in first_seven_stops.values()}
         for name in ("calendar.txt", "calendar_dates.txt", "transfers.txt", "feed_info.txt"):
             if name in source.namelist():
                 target.writestr(name, source.read(name))
         for name, records in (("trips.txt", trips),
                               ("stop_times.txt", (r for r in rows(source, "stop_times.txt")
-                                                  if r["trip_id"] in trip_ids and r["stop_id"] in stops))):
+                                                  if r["trip_id"] in trip_ids
+                                                  and (r["stop_id"] in stops
+                                                       or (r["trip_id"], r["stop_id"], r["stop_sequence"])
+                                                       in first_seven_keys)))):
             text = io.StringIO(newline="")
             writer = None
             for row in records:
@@ -91,7 +104,8 @@ def parse_schedule(data, now):
         trips = {r["trip_id"]: r for r in rows(archive, "trips.txt") if r["route_id"] in LEGS}
         stops = {}
         for r in rows(archive, "stop_times.txt"):
-            if r["trip_id"] in trips and r["stop_id"] in LEGS[trips[r["trip_id"]]["route_id"]]:
+            if r["trip_id"] in trips and (r["stop_id"] in LEGS[trips[r["trip_id"]]["route_id"]]
+                                           or trips[r["trip_id"]]["route_id"] in ("7", "7X")):
                 stops.setdefault(r["trip_id"], {})[r["stop_id"]] = r
         for delta in (-1, 0, 1):
             day = current_day + timedelta(days=delta)
@@ -120,8 +134,15 @@ def parse_schedule(data, now):
                     continue
                 start = int(epoch + service_seconds(board["departure_time"] or board["arrival_time"]))
                 end = int(epoch + service_seconds(alight["arrival_time"] or alight["departure_time"]))
+                origin_start = None
+                if trip["route_id"] in ("7", "7X"):
+                    first_stop = min(calls.values(), key=lambda stop: int(stop["stop_sequence"]))
+                    origin_time = first_stop["departure_time"] or first_stop["arrival_time"]
+                    if origin_time:
+                        origin_start = int(epoch + service_seconds(origin_time))
                 if now <= start <= now + HORIZON_SECONDS * 2 and 0 < end - start <= HORIZON_SECONDS:
-                    legs.append(Leg(trip["route_id"], date + ":" + trip_id, start, end, ("schedule only",)))
+                    legs.append(Leg(trip["route_id"], date + ":" + trip_id, start, end,
+                                    ("schedule only",), origin_start=origin_start))
         for r in rows(archive, "transfers.txt"):
             if r["from_stop_id"] in ("127", "127S") and r["to_stop_id"] in ("725", "725S"):
                 if r["transfer_type"] == "3":

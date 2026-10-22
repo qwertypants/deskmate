@@ -7,7 +7,8 @@ import unittest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from google.transit import gtfs_realtime_pb2 as gtfs
 from nyct_subway import nyct_feed_header, nyct_trip_descriptor, nyct_stop_time_update
-from subway import Feed, Leg, ZONE, clock_text, estimate, parse_feed, payloads, selected
+from subway import (Feed, Leg, ZONE, clock_text, estimate, parse_feed, payloads,
+                    selected, static_trip_matches)
 
 NOW = int(datetime(2026, 10, 22, 12, tzinfo=ZONE).timestamp())
 
@@ -253,8 +254,10 @@ class EstimateTests(unittest.TestCase):
             self.assertEqual(value["icon"], "attentionwarning")
 
     def test_static_7_only_fills_beyond_live_coverage_and_replacement_window(self):
-        before = Leg("7", "static-before", NOW + 1690, NOW + 1850, ("schedule only",))
-        after = Leg("7", "static-after", NOW + 1801, NOW + 2000, ("schedule only",))
+        before = Leg("7", "static-before", NOW + 1690, NOW + 1850, ("schedule only",),
+                     origin_start=NOW + 1600)
+        after = Leg("7", "static-after", NOW + 1801, NOW + 2000, ("schedule only",),
+                    origin_start=NOW + 1801)
         feed = Feed(NOW, (self.three,), (("7", NOW + 1800),))
         result = payloads(feed, (before, after), 180, NOW)["subway_eta"]
         self.assertIn("~12:33p", result["text"])
@@ -265,6 +268,29 @@ class EstimateTests(unittest.TestCase):
         self.assertNotIn("7 schedule", result["text"])
         # No replacement extension: still reserve the first 30 minutes.
         result = payloads(Feed(NOW, (self.three,)), (before,), 180, NOW)["subway_eta"]
+        self.assertIn("3 no estimate", result["text"])
+
+    def test_replacement_window_uses_scheduled_origin_not_times_sq_departure(self):
+        origin_inside = Leg("7", "20261022:B20261022WKD_073000_7..S35R",
+                            NOW + 2700, NOW + 2880, origin_start=NOW + 600)
+        origin_after = Leg("7", "20261022:B20261022WKD_080000_7..S35R",
+                           NOW + 3300, NOW + 3480, origin_start=NOW + 1801)
+        feed = Feed(NOW, (self.three,), (("7", NOW + 1800),))
+        without_late_trip = payloads(feed, (origin_inside,), 180, NOW)["subway_eta"]
+        self.assertIn("3 no estimate", without_late_trip["text"])
+        with_late_trip = payloads(feed, (origin_inside, origin_after), 180, NOW)["subway_eta"]
+        self.assertIn("~12:58p", with_late_trip["text"])
+
+    def test_partial_realtime_trip_id_suppresses_static_optional_path_suffix(self):
+        self.assertTrue(static_trip_matches("B20261022WKD_073000_7..S35R", "073000_7..S"))
+        self.assertFalse(static_trip_matches("B20261022WKD_073000_7..S35R", "073100_7..S"))
+        f = fixture()
+        train(f)
+        cancelled = train(f, "7", 2000, 3000, "073000_7..S", origin="725S", destination="726S")
+        cancelled.trip.schedule_relationship = gtfs.TripDescriptor.CANCELED
+        scheduled = Leg("7", "20261022:B20261022WKD_073000_7..S35R",
+                        NOW + 2000, NOW + 3000, origin_start=NOW + 2000)
+        result = payloads(parse(f), (scheduled,), 180, NOW)["subway_eta"]
         self.assertIn("3 no estimate", result["text"])
 
     def test_healthy_empty_feed_never_resurrects_static_first_leg(self):

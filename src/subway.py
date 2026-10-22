@@ -28,6 +28,7 @@ class Leg:
     end: int | None
     warnings: tuple = ()
     arrival: int | None = None
+    origin_start: int | None = None
 
 
 @dataclass(frozen=True)
@@ -166,6 +167,12 @@ def payload(text, warnings, lifetime):
     return result
 
 
+def static_trip_matches(static_trip_id, realtime_trip_id):
+    """Match NYCT's optional static path suffix against a realtime trip ID."""
+    _, separator, scheduled_id = static_trip_id.partition("_")
+    return bool(separator and realtime_trip_id and scheduled_id.startswith(realtime_trip_id))
+
+
 def payloads(feed, scheduled, transfer_seconds, now):
     """Show two upcoming trains, and the next catchable train per route."""
     usable = -30 <= now - feed.timestamp <= MAX_AGE_SECONDS and not feed.warning
@@ -184,12 +191,15 @@ def payloads(feed, scheduled, transfer_seconds, now):
     for leg in scheduled:
         if leg.route in ("7", "7X"):
             date, _, trip_id = leg.trip_id.partition(":")
-            if usable and any((not day or day == date) and trip_id.endswith(identifier)
+            if usable and any((not day or day == date) and static_trip_matches(trip_id, identifier)
                               for day, identifier in feed.realtime_trips if identifier):
                 continue  # Includes cancelled, skipped, and incomplete realtime trips.
-            if not usable or (boundary and leg.start > boundary):
+            # NYCT's replacement window is based on trips starting at their
+            # origin, not the later Times Sq stop used for this connection.
+            if not usable or (leg.origin_start is not None and leg.origin_start > boundary):
                 warnings = ("7 schedule",) + tuple(w for w in leg.warnings if w != "schedule only")
-                connections.append(Leg(leg.route, leg.trip_id, leg.start, leg.end, warnings))
+                connections.append(Leg(leg.route, leg.trip_id, leg.start, leg.end, warnings,
+                                       leg.arrival, leg.origin_start))
     trains_text, eta_text, trains_warnings, eta_warnings = [], [], [], []
     trains_life, eta_life = 60, 60
     if usable:
