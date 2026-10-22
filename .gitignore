@@ -18,3 +18,6 @@ __pycache__/
 /.google-calendar/
 /calendar.log
 /.calendar.lock
+
+# Private, machine-local project workspaces.
+/local/
