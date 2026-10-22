@@ -9,6 +9,12 @@ three events' local times and titles on one scrolling line with the
 while a meeting is underway. It runs on the Pi every minute and hides when the
 next 24 hours are clear.
 
+The independent [subway apps](docs/subway.md) show downtown 3/2 arrivals at
+135 St and the estimated Hudson Yards arrival if you leave now, walk six minutes,
+and transfer to the 7 at Times Square. Preview with
+`python src/subway_widget.py --dry-run`; normal mode pushes `subway_trains` and
+`subway_eta`. Unreliable data adds the `attentionwarning` icon and a brief reason.
+
 The selected 32×8 layout shows everything at once:
 
 - A pale terminal prompt icon on the left.

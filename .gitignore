@@ -21,3 +21,8 @@ __pycache__/
 
 # Private, machine-local project workspaces.
 /local/
+
+# Downloaded public subway schedule and local poll output.
+/.subway/
+/subway.log
+/.subway.lock
