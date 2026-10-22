@@ -10,7 +10,7 @@ from unittest.mock import Mock, patch
 import zipfile
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-from subway import ZONE
+from subway import Feed, Leg, ZONE, payloads
 from subway_schedule import (REALTIME_URL, SCHEDULE_URL, compact_schedule, download,
                              load_schedule, parse_schedule, service_epoch, service_seconds)
 
@@ -147,10 +147,24 @@ class CacheTests(unittest.TestCase):
 
     @patch("subway_schedule.download", side_effect=OSError("offline"))
     def test_refresh_failure_reuses_recent_cache_with_warning(self, fetch):
-        self.save(archive(), age=4000)
+        data = archive(**{"stop_times.txt": "trip_id,arrival_time,departure_time,stop_id,stop_sequence,pickup_type,drop_off_type\n"
+                                    "three,12:08:00,12:08:30,224S,1,0,0\n"
+                                    "three,12:25:00,12:25:00,127S,2,0,0\n"
+                                    "two,12:10:00,12:10:00,224S,1,0,0\n"
+                                    "two,12:28:00,12:28:00,127S,2,0,0\n"
+                                    "seven,12:40:00,12:40:00,701S,1,0,0\n"
+                                    "seven,13:04:00,13:04:00,725S,2,0,0\n"
+                                    "seven,13:07:00,13:07:00,726S,3,0,0\n"
+                                    "one,12:08:00,12:08:00,224S,1,0,0\n"})
+        self.save(data, age=4000)
         legs, transfer, warning = load_schedule(self.path, NOW)
         self.assertEqual((len(legs), transfer, warning), (3, 180, "old schedule"))
         self.assertIn("old schedule", legs[0].warnings)
+        seven = next(leg for leg in legs if leg.route == "7")
+        self.assertEqual(seven.origin_start, NOW + 2400)
+        live_three = Leg("3", "live-three", NOW + 480, NOW + 1500)
+        result = payloads(Feed(NOW, (live_three,), (("7", NOW + 1800),)), legs, transfer, NOW)
+        self.assertIn("~1:07p", result["subway_eta"]["text"])
 
     @patch("subway_schedule.download", side_effect=OSError("offline"))
     def test_absent_expired_corrupt_and_future_cache_fail_safely(self, fetch):

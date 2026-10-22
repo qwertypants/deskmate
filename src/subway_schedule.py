@@ -192,7 +192,8 @@ def load_schedule(cache_path, now):
             raise ValueError("No schedule")
         legs, transfer = parse_schedule(cached, now)
         if warning:
-            legs = tuple(Leg(l.route, l.trip_id, l.start, l.end, l.warnings + (warning,)) for l in legs)
+            legs = tuple(Leg(l.route, l.trip_id, l.start, l.end, l.warnings + (warning,),
+                             l.arrival, l.origin_start) for l in legs)
         return legs, transfer, warning
     except (OSError, ValueError, KeyError, TypeError, csv.Error, zipfile.BadZipFile, UnicodeError, StopIteration):
         return (), TRANSFER_SECONDS, "schedule unavailable"
