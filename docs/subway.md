@@ -35,9 +35,22 @@ python -m pip install -r requirements.txt
 python src/subway_widget.py --dry-run
 ```
 
-Dry run downloads public MTA data, updates the local schedule cache, and prints
-the exact two JSON payloads. It never contacts AWTRIX. Normal mode pushes both
-apps to `AWTRIX_HOST` from the project `.env` or shell environment:
+The command enforces Monday through Thursday, 08:45 inclusive to 10:00
+exclusive in `America/New_York`, using Python `ZoneInfo` so EST/EDT changes and
+the scheduler host's timezone do not shift the window. During that window,
+dry run downloads public MTA data, updates the local schedule cache, and prints
+the exact two JSON payloads. Outside it, dry run prints the cleanup policy and
+app names without fetching feeds. It never contacts AWTRIX or checks actual app
+ownership. An active meeting or idle takeover defers either mode.
+
+Normal mode publishes both apps only within the window, to `AWTRIX_HOST` from
+the project `.env` or shell environment. Live publication requires a literal
+IPv4 or IPv6 address in that URL (IPv6 uses brackets), optionally with a port.
+Set the clock's numeric IP address in `AWTRIX_HOST`; hostnames such as
+`clock.local` are refused before any AWTRIX request during the window. urllib's
+socket timeout does not bound DNS resolution, and pre-resolving a hostname does
+not prevent urllib from resolving it again. Dry run still works with a hostname,
+and out-of-window cleanup still accepts one:
 
 ```sh
 python src/subway_widget.py
@@ -54,14 +67,44 @@ present non-pushed apps with either name, and verifies both apps are pushed,
 present, enabled, and in the loop. Both names must be enabled in AWTRIX's app
 controls. It does not change brightness, app order, or unrelated apps. An active
 meeting or idle takeover state defers the update before any network requests;
-custom `MEETING_STATE_PATH` and `IDLE_STATE_PATH` are honored.
+custom `MEETING_STATE_PATH` and `IDLE_STATE_PATH` are honored. The state is
+checked again after app preflight, before publishing or cleanup. These checks
+are not a lock against a takeover starting during device writes.
+
+Outside the window, normal mode skips MTA requests, preflights both app names,
+and refuses any present app whose origin is not `pushed` before deleting either.
+It deletes only present pushed `subway_trains` and `subway_eta` apps, then reads
+back and verifies both are absent. Expired tombstones with `present: false` are
+already absent and are not deleted. Repeated cleanup sends no further deletes.
+Deletion or readback failure returns nonzero. The window is rechecked after
+feed requests and app preflight, so a fetch that reaches 10:00 leads to cleanup
+rather than publication. No other app is removed, reordered, or restored.
 
 Optional scheduling, after a manual run and device verification, is one poll
-per minute. Replace the example paths and install it yourself with `crontab -e`:
+per minute throughout every day, including outside the publishing window so
+cleanup can run. The exact invocation below uses the same schedule-enforcing
+command as a manual run. Replace the example paths and install it yourself with
+`crontab -e`:
 
 ```cron
 * * * * * /usr/bin/flock -n /home/your-user/deskmate/.subway.lock /home/your-user/deskmate/.venv/bin/python /home/your-user/deskmate/src/subway_widget.py >> /home/your-user/deskmate/subway.log 2>&1 # deskmate-subway
 ```
+
+Before each push, the command rechecks the window and caps the device's relative
+TTL to the time left until 10:00 minus twice the client's socket timeout and a
+250ms processing margin. This reserves connect and response socket phases.
+With the default five-second timeout, publication stops when fewer than
+10.251 seconds remain. Payloads use `lifetimeExpiry: remove`, so normal scheduled
+operation does not depend on a cleanup poll landing exactly at 10:00. A request
+or final readback returning after cutoff triggers fresh ownership readback and
+verified cleanup instead of reporting publication success.
+
+The first successful poll at or after 10:00 also removes any remaining pushed
+subway apps. A delayed or missed poll, a device error, or an active takeover can
+delay cleanup; cleanup resumes when the takeover ends and the next poll succeeds.
+The reserve is conservative for normal socket operation, not a hard wall-clock
+network deadline under arbitrary OS stalls or repeated response reads. Device
+TTL enforcement and physical display timing require separate device verification.
 
 This does not replace existing cron lines. Each invocation reads the project
 `.env`, even from another working directory. Takeover transitions and this poll
