@@ -6,6 +6,7 @@ import math
 import os
 from pathlib import Path
 import sys
+from zoneinfo import ZoneInfo
 
 from dotenv import load_dotenv
 
@@ -23,9 +24,31 @@ FONT = {
     "+": "000 010 111 010 000",
 }
 
+CLOCK_FONT = {
+    "0": "11 10 10 10 11", "1": "01 01 01 01 01",
+    "2": "11 01 11 10 11", "3": "11 01 11 01 11",
+    "4": "10 10 11 01 01", "5": "11 10 11 01 11",
+    "6": "11 10 11 10 11", "7": "11 01 01 01 01",
+    "8": "11 10 11 10 11", "9": "11 10 11 01 11",
+}
+EASTERN = ZoneInfo("America/New_York")
+
 
 def rounded_remaining(value):
     return None if value is None else int(math.floor(100 - value["used_percent"] + 0.5))
+
+
+def primary_reset_clock(primary):
+    """Return the primary reset as Eastern wall-clock h:mm text."""
+    try:
+        reset = primary["resets_at"]
+        if (isinstance(reset, bool) or not isinstance(reset, (int, float))
+                or not math.isfinite(reset) or reset <= 0):
+            raise ValueError
+        local = datetime.fromtimestamp(reset, timezone.utc).astimezone(EASTERN)
+    except (KeyError, TypeError, ValueError, OverflowError, OSError) as exc:
+        raise ValueError("Invalid Codex resets_at") from exc
+    return "%d:%02d" % ((local.hour % 12) or 12, local.minute)
 
 
 def payloads(snapshot, lifetime_ms):
@@ -48,6 +71,20 @@ def payloads(snapshot, lifetime_ms):
         for index, char in enumerate(value):
             glyph(FONT[char], x + index * 4, 1, color)
 
+    def clock(value, x, color):
+        hour, minute = value.split(":")
+        width = 2 * len(hour) + 1 + 1 + 1 + 2 * len(minute)
+        cursor = x + (11 - width) // 2
+        for char in hour:
+            glyph(CLOCK_FONT[char], cursor, 1, color)
+            cursor += 2
+        cursor += 1
+        glyph("0 1 0 1 0", cursor, 1, color)
+        cursor += 2
+        for char in minute:
+            glyph(CLOCK_FONT[char], cursor, 1, color)
+            cursor += 2
+
     # Terminal prompt and underscore; it occupies columns 0..2.
     glyph("100 010 001 010 100", 0, 1, "d7f8ee")
     glyph("11", 1, 6, "d7f8ee")
@@ -60,6 +97,8 @@ def payloads(snapshot, lifetime_ms):
             glyph(FONT["0"], x + 2, 1, color)
             glyph(FONT["0"], x + 4, 1, color)
             glyph(FONT["%"], x + 8, 1, color)
+        elif x == 4 and remaining == 0:
+            clock(primary_reset_clock(value), x, color)
         else:
             text("?" if remaining is None else str(remaining) + "%", x, color)
         if remaining is not None:

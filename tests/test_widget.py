@@ -211,6 +211,10 @@ class CommandTests(unittest.TestCase):
         self.assertLess(len(json.dumps(page).encode()), 8192)
         return [rgb[i:i+3] for i in range(0,len(rgb),3)]
 
+    def colored_points(self, pixels, color):
+        return {(x, y) for y in range(8) for x in range(32)
+                if pixels[y * 32 + x] == bytes.fromhex(color)}
+
     def test_remaining_percentage_conversion(self):
         self.assertEqual(main.rounded_remaining({"used_percent": 67}), 33)
         self.assertEqual(main.rounded_remaining({"used_percent": 58}), 42)
@@ -255,6 +259,60 @@ class CommandTests(unittest.TestCase):
         # The percent sign remains present at 100, in the last three columns.
         self.assertEqual(pixels[1*32+12], bytes.fromhex("38bdf8"))
         self.assertEqual(pixels[1*32+14], bytes.fromhex("38bdf8"))
+
+    def test_depleted_primary_renders_eastern_reset_clock_without_touching_other_fields(self):
+        data = snapshot(used=99.6, reset=datetime(2026, 10, 27, 19, 42,
+                                                tzinfo=timezone.utc).timestamp())
+        depleted = self.pixels(data)
+        expected_clock = {(5, 1), (5, 3), (5, 5),
+                          (6, 1), (6, 2), (6, 3), (6, 4), (6, 5),
+                          (8, 2), (8, 4),
+                          (10, 1), (10, 2), (10, 3),
+                          (11, 3), (11, 4), (11, 5),
+                          (12, 1), (12, 3), (12, 4), (12, 5),
+                          (13, 1), (13, 2), (13, 3), (13, 5)}
+        self.assertEqual(self.colored_points(depleted, "38bdf8"), expected_clock)
+        self.assertTrue(all(depleted[7 * 32 + x] == bytes.fromhex("23313d")
+                            for x in range(4, 15)))
+
+        nonzero = snapshot(used=99.4, reset=data["primary"]["resets_at"])
+        normal = self.pixels(nonzero)
+        for y in range(8):
+            for x in range(16, 32):
+                self.assertEqual(depleted[y * 32 + x], normal[y * 32 + x], (x, y))
+        self.assertTrue(self.colored_points(depleted, "c084fc"))
+        self.assertTrue(self.colored_points(depleted, "fbbf24"))
+        self.assertEqual(self.colored_points(normal, "38bdf8"),
+                         {(5, 1), (4, 2), (5, 2), (5, 3), (5, 4),
+                          (4, 5), (5, 5), (6, 5),
+                          (8, 1), (10, 1), (10, 2), (9, 3),
+                          (8, 4), (8, 5), (10, 5)})
+
+    def test_reset_clock_handles_midnight_noon_and_daylight_saving(self):
+        cases = (("2026-01-15T05:00:00+00:00", "12:00"),
+                 ("2026-01-15T17:00:00+00:00", "12:00"),
+                 ("2026-07-15T19:42:00+00:00", "3:42"),
+                 ("2026-11-01T05:30:00+00:00", "1:30"),
+                 ("2026-11-01T06:30:00+00:00", "1:30"))
+        for timestamp, expected in cases:
+            with self.subTest(timestamp=timestamp):
+                primary = {"resets_at": datetime.fromisoformat(timestamp).timestamp()}
+                self.assertEqual(main.primary_reset_clock(primary), expected)
+                data = snapshot(used=100, reset=primary["resets_at"])
+                self.assertTrue(all(4 <= x <= 14
+                                    for x, _ in self.colored_points(self.pixels(data), "38bdf8")))
+
+    def test_depleted_primary_rejects_missing_or_malformed_reset_time(self):
+        bad_values = (None, True, "soon", float("nan"), float("inf"), -1)
+        for value in bad_values:
+            with self.subTest(value=value):
+                data = snapshot(used=100)
+                if value is None:
+                    del data["primary"]["resets_at"]
+                else:
+                    data["primary"]["resets_at"] = value
+                with self.assertRaisesRegex(ValueError, "Invalid Codex resets_at"):
+                    self.pixels(data)
 
     def test_reset_overflow_is_marked_without_clipping(self):
         for count in (0, 9, 10, 999):
