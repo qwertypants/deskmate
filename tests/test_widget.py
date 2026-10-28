@@ -264,29 +264,162 @@ class CommandTests(unittest.TestCase):
         data = snapshot(used=99.6, reset=datetime(2026, 10, 27, 19, 42,
                                                 tzinfo=timezone.utc).timestamp())
         depleted = self.pixels(data)
-        expected_clock = {(5, 1), (5, 3), (5, 5),
-                          (6, 1), (6, 2), (6, 3), (6, 4), (6, 5),
-                          (8, 2), (8, 4),
-                          (10, 1), (10, 2), (10, 3),
-                          (11, 3), (11, 4), (11, 5),
-                          (12, 1), (12, 3), (12, 4), (12, 5),
-                          (13, 1), (13, 2), (13, 3), (13, 5)}
+        # "3:42" in the full-size FONT (3px glyphs, 1px colon, 1px gaps) centered in 4..20.
+        expected_clock = {(6, 1), (7, 1), (8, 1), (8, 2),
+                          (6, 3), (7, 3), (8, 3), (8, 4),
+                          (6, 5), (7, 5), (8, 5),
+                          (10, 2), (10, 4),
+                          (12, 1), (14, 1), (12, 2), (14, 2),
+                          (12, 3), (13, 3), (14, 3), (14, 4), (14, 5),
+                          (16, 1), (17, 1), (18, 1), (18, 2),
+                          (16, 3), (17, 3), (18, 3), (16, 4),
+                          (16, 5), (17, 5), (18, 5)}
         self.assertEqual(self.colored_points(depleted, "38bdf8"), expected_clock)
         self.assertTrue(all(depleted[7 * 32 + x] == bytes.fromhex("23313d")
-                            for x in range(4, 15)))
+                            for x in range(4, 21)))
+        # Column 21 separates the widened blue span from the narrowed purple span.
+        self.assertTrue(all(depleted[y * 32 + 21] == b"\0\0\0" for y in range(8)))
 
         nonzero = snapshot(used=99.4, reset=data["primary"]["resets_at"])
         normal = self.pixels(nonzero)
-        for y in range(8):
-            for x in range(16, 32):
-                self.assertEqual(depleted[y * 32 + x], normal[y * 32 + x], (x, y))
+
+        # Primary display should differ (clock vs percentage)
+        primary_diff = any(
+            depleted[y * 32 + x] != normal[y * 32 + x]
+            for y in range(8)
+            for x in range(4, 21)
+        )
+        self.assertTrue(primary_diff, "Primary display should show clock when depleted")
+
+        # Secondary switches from text to a gauge.
+        secondary_diff = any(
+            depleted[y * 32 + x] != normal[y * 32 + x]
+            for y in range(8)
+            for x in range(22, 28)
+        )
+        self.assertTrue(secondary_diff,
+                       "Secondary display should become a gauge when primary is depleted")
+
+        # The reset count keeps its full-size glyph, so it is unchanged.
+        self.assertTrue(all(depleted[y * 32 + x] == normal[y * 32 + x]
+                            for y in range(8) for x in range(28, 32)))
+
+        # Both should still render the same colors (purple and yellow)
         self.assertTrue(self.colored_points(depleted, "c084fc"))
         self.assertTrue(self.colored_points(depleted, "fbbf24"))
-        self.assertEqual(self.colored_points(normal, "38bdf8"),
-                         {(5, 1), (4, 2), (5, 2), (5, 3), (5, 4),
-                          (4, 5), (5, 5), (6, 5),
-                          (8, 1), (10, 1), (10, 2), (9, 3),
-                          (8, 4), (8, 5), (10, 5)})
+
+    def test_depleted_layout_uses_a_full_height_gauge(self):
+        """Depleted: blue keeps clock + bar at 4..20, purple becomes a 5-column gauge."""
+        data = snapshot(used=99.6)
+        pixels = self.pixels(data)
+        dark = bytes.fromhex("23313d")
+        purple = bytes.fromhex("c084fc")
+
+        # The blue bar is still the 17-column track with no fill at 0% left.
+        self.assertEqual(sum(pixels[7 * 32 + x] == dark for x in range(4, 21)), 17)
+
+        # The gauge occupies every row of columns 22..26 (5 wide).
+        for y in range(8):
+            for x in range(22, 27):
+                self.assertIn(pixels[y * 32 + x], (purple, dark), (x, y))
+            self.assertEqual(pixels[y * 32 + 27], b"\0\0\0", y)
+        # 47% left rounds to four filled rows, which sit at the bottom.
+        for y in range(8):
+            expected = purple if y >= 4 else dark
+            for x in range(22, 27):
+                self.assertEqual(pixels[y * 32 + x], expected, (x, y))
+
+        # Column 21 separates the clock from the gauge.
+        self.assertTrue(all(pixels[y * 32 + 21] == b"\0\0\0" for y in range(8)))
+
+    def test_depleted_gauge_fills_from_the_bottom(self):
+        """The unfilled share of the gauge is headroom above the fill."""
+        dark = bytes.fromhex("23313d")
+        purple = bytes.fromhex("c084fc")
+        # used_percent -> empty rows on top; fill is round(8 * remaining / 100).
+        cases = ((0, 0), (20, 2), (47, 4), (100, 8))
+        for used, empty_rows in cases:
+            with self.subTest(used_percent=used):
+                data = snapshot(used=99.6)
+                data["secondary"]["used_percent"] = used
+                pixels = self.pixels(data)
+                for y in range(8):
+                    expected = dark if y < empty_rows else purple
+                    for x in range(22, 27):
+                        self.assertEqual(pixels[y * 32 + x], expected, (y, x))
+
+    def test_depleted_gauge_is_absent_when_secondary_is_unknown(self):
+        data = snapshot(used=99.6)
+        data["secondary"] = None
+        pixels = self.pixels(data)
+        self.assertTrue(all(pixels[y * 32 + x] == b"\0\0\0"
+                            for y in range(8) for x in range(22, 28)))
+
+    def test_normal_layout_keeps_the_equal_column_split(self):
+        """Non-depleted: blue 4..14 and purple 16..26 stay exactly as before."""
+        data = snapshot(used=51)
+        data["secondary"]["used_percent"] = 55
+        pixels = self.pixels(data)
+        blue = bytes.fromhex("38bdf8")
+        purple = bytes.fromhex("c084fc")
+
+        # Text ink never leaves its historical span.
+        self.assertTrue(all(4 <= x <= 14 for x, _ in self.colored_points(pixels, "38bdf8")))
+        self.assertTrue(all(16 <= x <= 26 for x, _ in self.colored_points(pixels, "c084fc")))
+        # Bars are eleven columns each, and the separator columns stay empty.
+        self.assertEqual(sum(pixels[7 * 32 + x] == blue for x in range(4, 15)), 5)
+        self.assertEqual(sum(pixels[7 * 32 + x] == purple for x in range(16, 27)), 5)
+        self.assertTrue(all(pixels[y * 32 + x] == b"\0\0\0"
+                            for y in range(8) for x in (3, 15, 27)))
+
+    def test_depleted_clock_uses_full_size_glyphs(self):
+        """The reclaimed columns must buy a bigger clock, not extra padding."""
+        def width(used, reset):
+            data = snapshot(used=used, reset=reset)
+            points = self.colored_points(self.pixels(data), "38bdf8")
+            self.assertTrue(all(4 <= x <= 20 and 1 <= y <= 5 for x, y in points))
+            return max(x for x, _ in points) - min(x for x, _ in points) + 1
+
+        one_digit = datetime(2026, 10, 27, 19, 42, tzinfo=timezone.utc).timestamp()
+        two_digit = datetime(2026, 10, 27, 16, 0, tzinfo=timezone.utc).timestamp()
+        self.assertEqual(width(99.6, one_digit), 13)
+        self.assertEqual(width(99.6, two_digit), 17)
+
+    def test_purple_keeps_text_and_bar_when_primary_has_usage(self):
+        """Only the depleted state becomes a gauge; the normal state stays text + bar."""
+        pixels = self.pixels(snapshot(used=50))
+        dark = bytes.fromhex("23313d")
+        purple = bytes.fromhex("c084fc")
+
+        # Text ink in rows 1..5, and the dark track color only in the bar row —
+        # a gauge in this state would paint dark or purple across rows 0..7.
+        self.assertTrue(any(pixels[y * 32 + x] == purple
+                            for y in range(1, 6) for x in range(16, 27)))
+        self.assertTrue(all(pixels[y * 32 + x] != dark
+                            for y in range(0, 7) for x in range(16, 27)))
+        self.assertEqual(sum(pixels[7 * 32 + x] in (purple, dark)
+                             for x in range(16, 27)), 11)
+
+    def test_reset_count_keeps_full_size_font_in_both_states(self):
+        """Yellow returns to its original glyph size, so it no longer shrinks when depleted."""
+        normal = self.pixels(snapshot(used=50))
+        depleted = self.pixels(snapshot(used=99.6))
+        for y in range(8):
+            for x in range(28, 32):
+                self.assertEqual(depleted[y * 32 + x], normal[y * 32 + x], (x, y))
+
+        # The glyph is three pixels wide, starting at column 28.
+        yellow = bytes.fromhex("fbbf24")
+        points = self.colored_points(depleted, "fbbf24")
+        self.assertEqual({x for x, _ in points}, {28, 29, 30})
+
+    def test_reset_count_overflow_marker_keeps_full_size(self):
+        data = snapshot(used=99.6)
+        data["available_resets"] = 12
+        pixels = self.pixels(data)
+        yellow = bytes.fromhex("fbbf24")
+        self.assertEqual(pixels[3 * 32 + 28], yellow)
+        self.assertEqual(pixels[3 * 32 + 29], yellow)
 
     def test_reset_clock_handles_midnight_noon_and_daylight_saving(self):
         cases = (("2026-01-15T05:00:00+00:00", "12:00"),
@@ -299,7 +432,7 @@ class CommandTests(unittest.TestCase):
                 primary = {"resets_at": datetime.fromisoformat(timestamp).timestamp()}
                 self.assertEqual(main.primary_reset_clock(primary), expected)
                 data = snapshot(used=100, reset=primary["resets_at"])
-                self.assertTrue(all(4 <= x <= 14
+                self.assertTrue(all(4 <= x <= 20
                                     for x, _ in self.colored_points(self.pixels(data), "38bdf8")))
 
     def test_depleted_primary_rejects_missing_or_malformed_reset_time(self):

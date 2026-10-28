@@ -21,16 +21,9 @@ FONT = {
     "6": "111 100 111 101 111", "7": "111 001 010 010 010",
     "8": "111 101 111 101 111", "9": "111 101 111 001 111",
     "%": "101 001 010 100 101", "?": "111 001 010 000 010",
-    "+": "000 010 111 010 000",
+    "+": "000 010 111 010 000", ":": "0 1 0 1 0",
 }
 
-CLOCK_FONT = {
-    "0": "11 10 10 10 11", "1": "01 01 01 01 01",
-    "2": "11 01 11 10 11", "3": "11 01 11 01 11",
-    "4": "10 10 11 01 01", "5": "11 10 11 01 11",
-    "6": "11 10 11 10 11", "7": "11 01 01 01 01",
-    "8": "11 10 11 10 11", "9": "11 10 11 01 11",
-}
 EASTERN = ZoneInfo("America/New_York")
 
 
@@ -71,40 +64,68 @@ def payloads(snapshot, lifetime_ms):
         for index, char in enumerate(value):
             glyph(FONT[char], x + index * 4, 1, color)
 
-    def clock(value, x, color):
-        hour, minute = value.split(":")
-        width = 2 * len(hour) + 1 + 1 + 1 + 2 * len(minute)
-        cursor = x + (11 - width) // 2
-        for char in hour:
-            glyph(CLOCK_FONT[char], cursor, 1, color)
-            cursor += 2
-        cursor += 1
-        glyph("0 1 0 1 0", cursor, 1, color)
-        cursor += 2
-        for char in minute:
-            glyph(CLOCK_FONT[char], cursor, 1, color)
-            cursor += 2
+    def big_clock(value, x, width, color):
+        """Draw h:mm with the full-size FONT, centered in a `width` column span."""
+        widths = [len(FONT[char].split()[0]) for char in value]
+        ink = sum(widths) + len(widths) - 1
+        if ink > width:
+            raise ValueError("Codex clock exceeds its column budget")
+        cursor = x + (width - ink) // 2
+        for char, glyph_width in zip(value, widths):
+            glyph(FONT[char], cursor, 1, color)
+            cursor += glyph_width + 1
 
-    # Terminal prompt and underscore; it occupies columns 0..2.
-    glyph("100 010 001 010 100", 0, 1, "d7f8ee")
-    glyph("11", 1, 6, "d7f8ee")
-    for x, value, color in ((4, snapshot["primary"], "38bdf8"),
-                            (16, snapshot.get("secondary"), "c084fc")):
-        remaining = rounded_remaining(value)
+    def draw_value(x, remaining, color):
         if remaining == 100:
             # A slim 1 and two zeros sharing an edge keep 100% in eleven columns.
             glyph("1 1 1 1 1", x, 1, color)
             glyph(FONT["0"], x + 2, 1, color)
             glyph(FONT["0"], x + 4, 1, color)
             glyph(FONT["%"], x + 8, 1, color)
-        elif x == 4 and remaining == 0:
-            clock(primary_reset_clock(value), x, color)
-        else:
-            text("?" if remaining is None else str(remaining) + "%", x, color)
-        if remaining is not None:
-            filled = int(math.floor(11 * remaining / 100 + 0.5))
-            for column in range(11):
-                pixel(x + column, 7, color if column < filled else "23313d")
+            return
+        text("?" if remaining is None else str(remaining) + "%", x, color)
+
+    def draw_bar(x, width, remaining, color):
+        if remaining is None:
+            return
+        filled = int(math.floor(width * remaining / 100 + 0.5))
+        for column in range(width):
+            pixel(x + column, 7, color if column < filled else "23313d")
+
+    def draw_gauge(x, width, remaining, color):
+        """Full-height vertical bar; the unfilled share sits above the fill."""
+        if remaining is None:
+            return
+        filled = int(math.floor(8 * remaining / 100 + 0.5))
+        for row in range(8):
+            shade = color if row >= 8 - filled else "23313d"
+            for column in range(width):
+                pixel(x + column, row, shade)
+
+    # Terminal prompt and underscore; it occupies columns 0..2.
+    glyph("100 010 001 010 100", 0, 1, "d7f8ee")
+    glyph("11", 1, 6, "d7f8ee")
+
+    primary_remaining = rounded_remaining(snapshot["primary"])
+    primary_depleted = (primary_remaining == 0)
+
+    # A depleted primary shows a clock instead of a percentage, so it needs more
+    # columns than the purple window. The purple section turns into a full-height
+    # gauge, and the reset count keeps its full-size glyph.
+    if primary_depleted:
+        blue_x, blue_w = 4, 17        # 4..20
+        gauge_x, gauge_w = 22, 5      # 22..26, separator at 27
+        big_clock(primary_reset_clock(snapshot["primary"]), blue_x, blue_w, "38bdf8")
+        draw_bar(blue_x, blue_w, primary_remaining, "38bdf8")
+        draw_gauge(gauge_x, gauge_w,
+                   rounded_remaining(snapshot.get("secondary")), "c084fc")
+    else:
+        for x, value, color in ((4, snapshot["primary"], "38bdf8"),
+                                (16, snapshot.get("secondary"), "c084fc")):
+            remaining = rounded_remaining(value)
+            draw_value(x, remaining, color)
+            draw_bar(x, 11, remaining, color)
+
     resets = snapshot.get("available_resets")
     text("?" if resets is None else ("+" if resets >= 10 else str(resets)), 28, "fbbf24")
     bitmap = base64.b64encode(pixels).decode("ascii")
