@@ -1,8 +1,8 @@
 # Color Current — AWTRIX Transition Pack
 
-Color Current is a set of nine full-screen interludes for AWTRIX NG's 32 × 8 display. Aurora gradients, ocean ripples, prism curtains, an indigo wave, a cyberpunk highway, arcade ghosts, an 8-bit mushroom power-up sequence, Space Invaders, and a Manhattan nightfall fill all 256 pixels in every animation frame.
+Color Current is a set of ten interludes for AWTRIX NG's 32 × 8 display. Aurora gradients, ocean ripples, prism curtains, an indigo wave, a cyberpunk highway, arcade ghosts, an 8-bit mushroom power-up sequence, Space Invaders, a Manhattan nightfall, and a pellet chase fill the collection. Space Invaders and Pellet Chase use black backgrounds for readable arcade silhouettes.
 
-The Berry scripts run between widget apps as interludes. They do not replace the firmware's native transition effects. Aurora Tide and Prism Loom default to three seconds; Ocean Drops defaults to five seconds; Great Wave, Neon Highway, Ghost Parade, Mushroom Run, Space Invaders, and NYC After Dark default to seven seconds. The first three support one to five seconds, and the remaining animations support one to seven seconds.
+The Berry scripts run between widget apps as interludes. They do not replace the firmware's native transition effects. Aurora Tide and Prism Loom default to three seconds; Ocean Drops defaults to five seconds; Great Wave, Neon Highway, Ghost Parade, Mushroom Run, Space Invaders, and NYC After Dark default to seven seconds. The first three support one to five seconds; the seven-second animations support one to seven seconds. Pellet Chase defaults to eight seconds and supports one to eight seconds.
 
 ## Pack contents
 
@@ -15,6 +15,7 @@ The Berry scripts run between widget apps as interludes. They do not replace the
 - `mushroom-run.be` — Mario hits a question block, grabs a mushroom, grows, and runs past a green pipe beneath a bright 8-bit sky.
 - `space-invaders.be` — a pixel spaceship fires into a descending invader wave.
 - `nyc-after-dark.be` — drifting clouds and twinkling stars reveal a rising Manhattan skyline.
+- `pellet-chase.be` — an eight-second Pac-Man chase: collect pellets, glow after the power pellet, and chase two frightened ghosts off-screen. Supports one to eight seconds.
 - `manifest.json` — animation metadata for the pack.
 - `previews/*.png` — cover frames rendered from Berry source.
 - `previews/*.gif` — animated previews rendered from Berry source.
@@ -51,4 +52,4 @@ The host renderer validates Berry behavior and preview output. It does not emula
 
 ## Credits and license
 
-Animations and artwork are original to this pack. Distributed under the MIT License; see `LICENSE`.
+Animation code and pixel artwork are drawn for this pack. Pac-Man and its related characters belong to their respective owners; Pellet Chase is an unofficial fan tribute. Pack code is distributed under the MIT License; see `LICENSE`.

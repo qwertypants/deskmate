@@ -82,6 +82,15 @@
       "style": "CITY NIGHTFALL",
       "sourceBytes": 2959,
       "distinctFrames": 33
+    },
+    {
+      "id": "pellet-chase",
+      "name": "Pellet Chase",
+      "description": "Pac-Man collects pellets, glows after a power pellet, and chases two frightened ghosts out of a blue maze corridor.",
+      "durationMs": 8000,
+      "style": "ARCADE CHASE",
+      "sourceBytes": 2942,
+      "distinctFrames": 126
     }
   ]
 }

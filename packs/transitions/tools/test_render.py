@@ -18,8 +18,14 @@ class TransitionTimingTests(unittest.TestCase):
             [animation["id"] for animation in manifest["animations"]],
             list(render.NAMES),
         )
-        self.assertEqual(manifest["animations"][-1]["id"], "nyc-after-dark")
-        self.assertEqual(manifest["animations"][-1]["durationMs"], 7000)
+        self.assertEqual(manifest["animations"][-1]["id"], "pellet-chase")
+        self.assertEqual(manifest["animations"][-1]["durationMs"], 8000)
+
+    def test_pellet_chase_is_an_eight_second_story(self):
+        self.assertEqual(DEFAULT_DURATIONS["pellet-chase"], 8000)
+        self.assertEqual(MAX_DURATIONS["pellet-chase"], 8000)
+        self.assertEqual(gif_duration_ms("pellet-chase") * 100, 8000)
+        self.assertNotIn("pellet-chase", render.SEAM_VALIDATED)
 
     def test_nyc_after_dark_is_a_seven_second_animation(self):
         self.assertEqual(DEFAULT_DURATIONS["nyc-after-dark"], 7000)

@@ -27,18 +27,21 @@ NAMES = {
     'mushroom-run': ('Mushroom Run', 'Mario hits a question block, grabs a mushroom, grows, and runs past a green pipe beneath a bright 8-bit sky.'),
     'space-invaders': ('Space Invaders', 'A pixel spaceship sweeps beneath a descending invader wave, firing until the screen clears.'),
     'nyc-after-dark': ('NYC After Dark', 'Stars and drifting clouds reveal a glowing Manhattan skyline rising into the night.'),
+    'pellet-chase': ('Pellet Chase', 'Pac-Man collects pellets, glows after a power pellet, and chases two frightened ghosts out of a blue maze corridor.'),
 }
 STYLES = {'aurora-tide': 'GRADIENT WAVES', 'ocean-drops': 'OCEAN RIPPLE',
           'prism-loom': 'COLOR CURTAINS', 'great-wave': 'WOODBLOCK WAVE',
           'neon-highway': 'CYBERPUNK SUNSET', 'ghost-parade': 'ARCADE GHOSTS',
           'mushroom-run': '8-BIT PLATFORMER', 'space-invaders': 'ARCADE SHOOTER',
-          'nyc-after-dark': 'CITY NIGHTFALL'}
+          'nyc-after-dark': 'CITY NIGHTFALL', 'pellet-chase': 'ARCADE CHASE'}
 DEFAULT_DURATIONS = {'aurora-tide': 3000, 'ocean-drops': 5000, 'prism-loom': 3000,
                      'great-wave': 7000, 'neon-highway': 7000, 'ghost-parade': 7000,
-                     'mushroom-run': 7000, 'space-invaders': 7000, 'nyc-after-dark': 7000}
+                     'mushroom-run': 7000, 'space-invaders': 7000, 'nyc-after-dark': 7000,
+                     'pellet-chase': 8000}
 MAX_DURATIONS = {'aurora-tide': 5000, 'ocean-drops': 5000, 'prism-loom': 5000,
                  'great-wave': 7000, 'neon-highway': 7000, 'ghost-parade': 7000,
-                 'mushroom-run': 7000, 'space-invaders': 7000, 'nyc-after-dark': 7000}
+                 'mushroom-run': 7000, 'space-invaders': 7000, 'nyc-after-dark': 7000,
+                 'pellet-chase': 8000}
 SEAM_VALIDATED = frozenset({'great-wave', 'neon-highway', 'mushroom-run', 'space-invaders'})
 GIF_FRAME_COUNT = 100
 
@@ -203,7 +206,7 @@ def write_gallery(output_root=ROOT):
 *{{box-sizing:border-box}}body{{margin:0;background:radial-gradient(ellipse at 50% -20%,#17384d,#08131d 65%);color:var(--ink);font:16px/1.5 system-ui,sans-serif}}
 main{{max-width:1000px;margin:auto;padding:40px 24px 64px}}header{{margin-bottom:30px}}h1{{font-size:clamp(2rem,6vw,3.4rem);line-height:1.05;margin:0 0 12px}}header p{{color:var(--muted);max-width:680px}}
 section{{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:18px}}article{{background:var(--panel);border:1px solid var(--edge);border-radius:18px;padding:16px;overflow:hidden}}.preview{{background:#02070b;border-radius:12px;overflow:hidden;aspect-ratio:4/1}}img{{display:block;width:100%;height:100%;image-rendering:pixelated;object-fit:cover}}h2{{margin:16px 0 4px}}article p{{color:var(--muted);margin:6px 0}}.style{{font-size:.8rem;text-transform:uppercase;letter-spacing:.08em}}a{{display:inline-block;margin-top:12px;color:#7ce7e4;font-weight:700}}
-</style><main><header><p>AWTRIX NG · COMMUNITY ANIMATION PACK · v{VERSION}</p><h1>Color Current</h1><p>{len(cards)} vivid full-screen interludes for the 32 × 8 display. Every frame colors all 256 pixels. Import an individual <code>.be</code> script in the AWTRIX NG Scripts settings.</p></header><section>{''.join(cards)}</section></main></html>'''
+</style><main><header><p>AWTRIX NG · COMMUNITY ANIMATION PACK · v{VERSION}</p><h1>Color Current</h1><p>{len(cards)} vivid interludes for the 32 × 8 display, from full-panel color to black-backed arcade scenes. Import an individual <code>.be</code> script in the AWTRIX NG Scripts settings.</p></header><section>{''.join(cards)}</section></main></html>'''
     (output_root / 'index.html').write_text(page)
 
 
@@ -255,7 +258,7 @@ def build(berry):
             verify(berry, source, duration, MAX_DURATIONS[slug], slug in SEAM_VALIDATED)
             frames = frames_for(berry, source, duration)
             short = frames_for(berry, source, 1000)
-            allow_black = slug == 'space-invaders'
+            allow_black = slug in {'space-invaders', 'pellet-chase'}
             validate_frames(frames, slug, allow_black=allow_black)
             validate_frames(short, slug, allow_black=allow_black)
             assert len({tuple(f) for f in frames}) >= 15, f'{slug}: insufficient motion'
